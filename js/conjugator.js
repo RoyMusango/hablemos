@@ -226,5 +226,66 @@
 
   function table(inf, tense) { return [0, 1, 2, 3, 4, 5].map(p => conjugate(inf, tense, p)); }
 
-  global.Conj = { VERBS, BY_INF, PERSONS, PERSONS_SHORT, TENSES, conjugate, table, participio, gerundio, imperativoTu, presente, indefinido, imperfecto, futuro };
+  // ---------- Entraîneur (interface commune utilisée par app.js) ----------
+  const TRAIN = ['presente', 'indefinido', 'imperfecto', 'perfecto', 'futuro', 'gerundio', 'imperativo'];
+  const NAMES = { presente: 'Presente', indefinido: 'Indefinido', imperfecto: 'Imperfecto', perfecto: 'Perfecto', futuro: 'Futuro', ir_a: 'Ir a + infinitivo', gerundio: 'Estar + gerundio', imperativo: 'Imperativo (tú)' };
+  const TOPIC = { presente: 'presente', indefinido: 'indefinido', imperfecto: 'imperfecto', perfecto: 'perfecto', futuro: 'futuro', ir_a: 'futuro', gerundio: 'gerundio', imperativo: 'imperativo' };
+  const PRIORITY = ['indefinido', 'perfecto', 'imperfecto', 'presente', 'futuro', 'gerundio', 'imperativo']; // départage à score égal
+  const SUBJ = [['yo'], ['tú'], ['él', 'ella', 'mi tutor', 'usted', 'Marta'], ['nosotros'], ['vosotros'], ['ellos', 'mis compañeros', 'ustedes']];
+  const PERSON_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 5];
+  const NO_IMP = ['ser', 'estar', 'poder', 'saber', 'querer', 'sentir', 'creer', 'oír', 'conocer', 'perder', 'recordar', 'entender', 'preferir', 'romper', 'llegar'];
+  const NO_GER = ['ser', 'estar', 'poder', 'saber', 'conocer', 'querer', 'preferir', 'entender', 'creer', 'perder', 'recordar', 'romper'];
+  const CONTEXT = {
+    indefinido: ['Ayer', 'Anoche', 'La semana pasada', 'El año pasado', 'En 2019', 'El otro día', 'Hace dos años'],
+    perfecto: ['Hoy', 'Esta mañana', 'Esta semana', 'Este año'],
+    imperfecto: ['Antes', 'De niño', 'Cuando era pequeño', 'Todos los veranos', 'De pequeño'],
+    futuro: ['Mañana', 'El año que viene', 'La semana que viene', 'Dentro de dos años', 'El próximo verano'],
+  };
+  const validVerbs = tense => VERBS.filter(v => !(tense === 'imperativo' && NO_IMP.includes(v.inf)) && !(tense === 'gerundio' && NO_GER.includes(v.inf)));
+
+  function makeItem(tense, { pick, trouble }) {
+    const verbs = validVerbs(tense);
+    const tr = trouble.filter(inf => verbs.some(v => v.inf === inf));
+    const v = tr.length && Math.random() < 0.4 ? BY_INF[pick(tr)] : pick(verbs);
+    if (tense === 'imperativo') return { kind: 'bare', tense, verb: v.inf, p: 1, prompt: v.inf, sub: `Impératif, tú · « ${v.c} »`, a: [imperativoTu(v.inf)] };
+    const p = pick(PERSON_WEIGHTS), subj = pick(SUBJ[p]), answer = conjugate(v.inf, tense, p);
+    if (CONTEXT[tense] && Math.random() < 0.5) {
+      // Mode contexte : le temps n'est pas donné, c'est le repère temporel qui doit le faire choisir
+      const a = tense === 'futuro' ? [answer, conjugate(v.inf, 'ir_a', p)] : [answer];
+      return { kind: 'context', tense, verb: v.inf, p, prompt: `${pick(CONTEXT[tense])}, ${subj} ___ ${v.c}.`, sub: `${v.inf} · ${v.fr}`, a };
+    }
+    return { kind: 'bare', tense, verb: v.inf, p, prompt: `${subj} · ${v.inf}`, sub: NAMES[tense], a: [answer] };
+  }
+  // Exercice de grammaire généré (points de grammaire avec `gen`)
+  function genItem(g, { pick }) {
+    const tense = pick(g.tenses);
+    const v = pick(validVerbs(tense));
+    if (tense === 'imperativo') return { q: `___ ${v.c}, por favor.`, hint: `${v.inf} à l’impératif (tú)`, a: [imperativoTu(v.inf)], verb: v.inf, tense };
+    const p = pick(PERSON_WEIGHTS);
+    const hint = tense === 'gerundio' ? `estar + gérondif de ${v.inf}` : tense === 'ir_a' ? `ir a + ${v.inf}` : `${v.inf}, ${TENSES[tense].label.toLowerCase()}`;
+    return { q: `${pick(g.markers)}, ${pick(SUBJ[p])} ___ ${v.c}.`, hint, a: [conjugate(v.inf, tense, p)], verb: v.inf, tense, p };
+  }
+  // La réponse correspond-elle à un autre temps ? (pour expliquer le contresens)
+  function wrongTense(item, matches) {
+    if (item.kind !== 'context') return null;
+    for (const t of ['indefinido', 'perfecto', 'imperfecto', 'presente', 'futuro']) {
+      if (t !== item.tense && matches(conjugate(item.verb, t, item.p))) return t;
+    }
+    return null;
+  }
+  function itemTable(it) {
+    if (!it.verb || it.tense === 'imperativo') return null;
+    return { title: `Conjugaison complète : ${it.verb}, ${NAMES[it.tense].toLowerCase()}`, rows: table(it.verb, it.tense).map((f, k) => [PERSONS[k], f, k === it.p]) };
+  }
+  function verbView(inf) {
+    return {
+      extras: [['Gérondif', gerundio(inf)], ['Participe', participio(inf)], ['Impératif (tú)', imperativoTu(inf)], ['Futur proche', 'voy a ' + inf]],
+      tables: ['presente', 'indefinido', 'imperfecto', 'perfecto', 'futuro'].map(t => ({ title: NAMES[t], rows: table(inf, t).map((f, k) => [PERSONS_SHORT[k], f]) })),
+    };
+  }
+
+  global.Conj = {
+    VERBS, BY_INF, PERSONS, PERSONS_SHORT, TENSES, conjugate, table, participio, gerundio, imperativoTu, presente, indefinido, imperfecto, futuro,
+    TRAIN, NAMES, TOPIC, PRIORITY, CONTEXT_TOPIC: 'contraste_pasados', makeItem, genItem, wrongTense, itemTable, verbView,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

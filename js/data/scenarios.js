@@ -123,7 +123,7 @@
       role: 'Juegas a "adivina mi objeto". Primero piensas en un objeto o animal y lo describes con pistas sencillas (color, tamaño, dónde está, para qué sirve). El estudiante hace preguntas y adivina. Después, el estudiante describe uno y tú adivinas. Esto entrena la circunlocución.',
       goal: 'Décrire sans dire le mot (c’est une chose qui sert à… / es un sitio donde…). Excellent pour apprendre à contourner un mot oublié.',
       targets: ['ser_estar', 'preposiciones', 'articulos'], themes: ['supervivencia', 'adjetivos', 'casa'], opener: '¡Vamos a jugar! Yo pienso en un objeto: es pequeño, normalmente está en la cocina y sirve para cortar. ¿Qué es?' },
-    { id: 'libre', cat: 'Raconter & discuter', title: 'Conversation libre',
+    { id: 'libre', free: true, cat: 'Raconter & discuter', title: 'Conversation libre',
       role: 'Eres Lucía, una amiga española de Barcelona, simpática y curiosa. Hablas de cualquier tema con el estudiante (su vida, el Barça, sus estudios, sus planes, la actualidad sin dar datos inventados como reales). Adapta los temas a sus intereses.',
       goal: 'Parler de tout et de rien. Si tu veux, propose un sujet.',
       targets: [], themes: [], opener: '¡Hola! ¿Qué tal estás hoy? ¿De qué quieres hablar?' },

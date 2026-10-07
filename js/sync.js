@@ -2,9 +2,15 @@
 // Chaque appareil garde ses propres compteurs de temps (additionnés à l'affichage) ;
 // cartes, points faibles et erreurs sont fusionnés en gardant la version la plus récente.
 (function (global) {
-  const CFG_KEY = 'hablemos-sync';
-  const DEV_KEY = 'hablemos-device';
-  const FILE = 'progress.json';
+  // Jeton et identifiant d'appareil communs aux apps de langues ; un fichier de progression par langue
+  const CFG_KEY = 'applangues-sync';
+  const DEV_KEY = 'applangues-device';
+  const FILE = LANG.syncFile;
+  // Reprise des réglages de la première version (app d'espagnol seule)
+  for (const [oldK, newK] of [['hablemos-sync', CFG_KEY], ['hablemos-device', DEV_KEY]]) {
+    const old = localStorage.getItem(oldK);
+    if (old && !localStorage.getItem(newK)) localStorage.setItem(newK, old);
+  }
   const API = 'https://api.github.com';
 
   function cfg() { try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch (e) { return {}; } }

@@ -1,0 +1,3 @@
+/* Couleurs propres à l'app : Espagne et FC Barcelone (grana et blau) */
+:root { --accent: #a50044; --accent-2: #004d98; --brand-mark: linear-gradient(90deg, #004d98 50%, #a50044 50%); }
+@media (prefers-color-scheme: dark) { :root { --accent: #e0457f; --accent-2: #5b9bf0; } }

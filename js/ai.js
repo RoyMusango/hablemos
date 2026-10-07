@@ -1,13 +1,15 @@
 // Appels IA : Gemini (gratuit via Google AI Studio) ou API compatible OpenAI (Groq, OpenRouter…).
+// Les consignes sont communes aux apps de langues ; LANG.ai apporte la langue cible et ses règles propres.
 (function (global) {
   const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta';
   // Modèles essayés si le modèle choisi est épuisé (429) ou introuvable (404)
   const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  const A = LANG.ai;
 
-  // Profil de l'apprenant, partagé par tous les prompts
-  const PROFILE = `Perfil del estudiante: francófono (Bélgica), estudiante de ingeniería en inteligencia artificial y apoyo a la decisión. Va a hacer un Erasmus en España (Barcelona) donde realizará su trabajo de fin de estudios (TFE) sobre el sector bancario, con tutores españoles. Hizo unas prácticas de investigación sobre el diseño de un RAG soberano (generación aumentada por recuperación, con datos e infraestructura bajo control propio) aplicado al sistema bancario. Quiere trabajar en banca o finanzas. Es un gran aficionado del FC Barcelona.`;
+  // Profil de l'apprenant, partagé par toutes les apps
+  const PROFILE = `Learner profile: French-speaking Belgian engineering student specialising in artificial intelligence and decision support. He is going on an Erasmus exchange in Spain (Barcelona) where he will write his master's thesis (TFE) on the banking sector, with supervisors who speak Spanish and English. He did a research internship on designing a sovereign RAG system (retrieval-augmented generation with data and infrastructure under the bank's own control) applied to banking, and his supervisor will ask him about it. He wants a career in banking or finance. He is a huge FC Barcelona fan.`;
 
-  const TYPO = '\n\nTipografía: no uses nunca la raya larga ni el guion medio como signo de puntuación; usa comas, dos puntos o paréntesis.';
+  const TYPO = '\n\nTypography: never use em dashes or en dashes as punctuation; use commas, colons or parentheses instead.';
 
   function hasKey() {
     const s = Store.settings;
@@ -124,14 +126,14 @@
   const CONV_SCHEMA = () => ({
     type: 'OBJECT',
     properties: {
-      reply: { type: 'STRING', description: 'tu respuesta en español' },
-      translation_fr: { type: 'STRING', description: 'traduction française de reply' },
+      reply: { type: 'STRING', description: `your answer in ${A.target}` },
+      translation_fr: { type: 'STRING', description: 'French translation of reply' },
       corrections: {
         type: 'ARRAY', items: {
           type: 'OBJECT', properties: {
-            original: { type: 'STRING', description: 'fragmento erróneo del estudiante' },
-            corrected: { type: 'STRING', description: 'versión correcta' },
-            explication: { type: 'STRING', description: 'explication courte en français' },
+            original: { type: 'STRING', description: 'the learner’s wrong or unnatural fragment' },
+            corrected: { type: 'STRING', description: 'correct, natural version' },
+            explication: { type: 'STRING', description: 'short explanation in French' },
             topic: { type: 'STRING', enum: TOPIC_IDS() },
           }, required: ['original', 'corrected', 'explication', 'topic'],
         },
@@ -139,12 +141,12 @@
       vocab: {
         type: 'ARRAY', items: {
           type: 'OBJECT', properties: {
-            es: { type: 'STRING' }, fr: { type: 'STRING' },
+            word: { type: 'STRING', description: `word or expression in ${A.target}` }, fr: { type: 'STRING' },
             syn: { type: 'ARRAY', items: { type: 'STRING' } },
-          }, required: ['es', 'fr'],
+          }, required: ['word', 'fr'],
         },
       },
-      suggestion: { type: 'STRING', description: 'una respuesta posible y sencilla que el estudiante podría decir' },
+      suggestion: { type: 'STRING', description: `a possible answer the learner could give next, in ${A.target}, at his level` },
     },
     required: ['reply', 'translation_fr', 'corrections', 'vocab', 'suggestion'],
   });
@@ -153,30 +155,31 @@
     const lv = Store.settings.level;
     const targets = (scn.targets || []).map(t => GRAMMAR.TOPICS[t] && `${GRAMMAR.TOPICS[t].label} (${t})`).filter(Boolean);
     const weak = weakTopics.map(t => GRAMMAR.TOPICS[t] ? GRAMMAR.TOPICS[t].label : t);
-    return `Eres un compañero de conversación y profesor de español. Nivel del estudiante: ${lv} (estudió español hace años y está oxidado).
+    return `You are a conversation partner and language tutor. The conversation happens in ${A.target}. The learner's level: ${lv}.
 ${PROFILE}
 
-ESCENARIO (juego de rol): ${scn.role}
-Te llamas ${scn.who}. Objetivo del estudiante: ${scn.goal}
+ROLE-PLAY SCENARIO: ${scn.role}
+Your name is ${scn.who}. The learner's goal: ${scn.goal}
 
-REGLAS DE CONVERSACIÓN:
-- Habla español de España (usa vosotros). Adapta tu nivel a ${lv}: frases cortas y claras. Máximo 2 o 3 frases (unas 35 palabras) por turno.
-- El estudiante debe hablar MÁS que tú. Termina casi siempre con UNA pregunta abierta que le haga hablar.
-- Provoca de forma natural el uso de: ${targets.length ? targets.join(', ') : 'temas variados'}. Sus puntos débiles actuales: ${weak.join(', ') || 'desconocidos'}.
-- Palabras que está aprendiendo o suele olvidar: ${reviewWords.length ? reviewWords.join(', ') : '(ninguna)'}. Reutiliza 1 o 2 por turno cuando encajen, para que las oiga en contexto.
-- Si escribe en francés o mezcla francés porque no encuentra una palabra, da la palabra española en "vocab" (con 1 a 3 sinónimos en "syn"), reformula su frase correctamente en tu respuesta y sigue la conversación.
-- Si pregunta "¿cómo se dice...?" o "¿qué significa...?", contesta brevemente y vuelve al juego de rol.
-- Si el contexto es formal (tutor, tribunal, banco, empresa) y usa un registro demasiado coloquial, añade en "corrections" una alternativa más formal con topic "registro".
-- Mantente en el personaje. No presentes como verdaderos datos actuales que no conoces (resultados, fichajes, noticias, cifras): pregunta o habla en términos generales.
+CONVERSATION RULES:
+- Reply ONLY in ${A.target}. ${A.levelRules(lv)}
+- The learner must speak MORE than you. End almost every turn with ONE open question that makes him talk.
+- Naturally steer him to use: ${targets.length ? targets.join(', ') : 'varied topics'}. His current weak points: ${weak.join(', ') || 'unknown'}.
+- Words he is learning or tends to forget: ${reviewWords.length ? reviewWords.join(', ') : '(none)'}. Reuse 1 or 2 per turn when they fit, so he hears them in context.
+- If he writes in French or mixes in French because a word is missing, give the ${A.target} word in "vocab" (with 1 to 3 synonyms in "syn"), rephrase his sentence correctly in your reply and continue.
+- If he asks how to say something or what a word means, answer briefly and return to the role-play.
+- If the context is formal (supervisor, jury, bank, company) and his register is too casual, add a more formal alternative in "corrections" with topic "registro".
+- Stay in character. Never present current facts you are unsure about (results, transfers, news, figures) as true: ask him or speak in general terms.
+${A.extraRules || ''}
 
-CORRECCIONES (campo "corrections"):
-- Analiza SOLO el último mensaje del estudiante. Señala cada error real: conjugación, tiempo verbal, ser/estar, género, preposición, palabra incorrecta, galicismo, orden, registro.
-- IGNORA tildes, mayúsculas y puntuación (el texto viene del reconocimiento de voz). No corrijas lo que está bien. Si no hay errores, lista vacía.
-- "explication" en francés, muy corta (máx. 20 palabras). "topic" = el punto más cercano.
+CORRECTIONS ("corrections"):
+- Analyse ONLY the learner's last message. Report every real error: ${A.errorTypes}.
+- IGNORE accents, capital letters and punctuation (the text comes from speech recognition). Do not correct what is fine. If there are no errors, return an empty list.
+- "explication" in French, very short (max 20 words). "topic" = the closest topic id.
 
-"vocab": 0 a 3 palabras útiles nuevas de tu respuesta o que el estudiante necesitaba (es, fr, syn).
-"suggestion": una respuesta posible, corta y de su nivel, por si se bloquea.
-"translation_fr": traducción francesa de tu "reply".`;
+"vocab": 0 to 3 useful new words from your reply or that he needed (word, fr, syn).
+"suggestion": a short possible answer at his level, in case he gets stuck.
+"translation_fr": French translation of your "reply".`;
   }
 
   async function converse(scn, history, weakTopics, reviewWords = []) {
@@ -184,24 +187,25 @@ CORRECCIONES (campo "corrections"):
   }
 
   // ---------- Lecture guidée ----------
-  const READ_SCHEMA = {
+  const READ_SCHEMA = () => ({
     type: 'OBJECT', properties: {
       title: { type: 'STRING' },
-      text: { type: 'STRING', description: 'texto en español; párrafos separados por una línea en blanco' },
-      glossary: { type: 'ARRAY', items: { type: 'OBJECT', properties: { es: { type: 'STRING', description: 'forma exacta tal como aparece en el texto' }, fr: { type: 'STRING' } }, required: ['es', 'fr'] } },
+      text: { type: 'STRING', description: `text in ${A.target}; paragraphs separated by a blank line` },
+      ...(A.readingTranslation ? { translation_fr: { type: 'STRING', description: 'full French translation' } } : {}),
+      glossary: { type: 'ARRAY', items: { type: 'OBJECT', properties: { word: { type: 'STRING', description: 'exact form as it appears in the text' }, fr: { type: 'STRING' } }, required: ['word', 'fr'] } },
       questions: { type: 'ARRAY', items: { type: 'STRING' } },
-    }, required: ['title', 'text', 'glossary', 'questions'],
-  };
+    }, required: ['title', 'text', 'glossary', 'questions', ...(A.readingTranslation ? ['translation_fr'] : [])],
+  });
 
   async function reading(topic, length, reviewWords) {
     const lv = Store.settings.level;
-    const sys = `Eres profesor de español de España. Escribe un texto original para un estudiante de nivel ${lv}, subiendo ligeramente el nivel para que aprenda.
+    const sys = `You are a teacher of ${A.target}. Write an original text for a learner at level ${lv}, ${A.readingLevel}.
 ${PROFILE}
-Tema: ${topic}. Longitud: unas ${length} palabras, en 2 a 4 párrafos. Frases claras, vocabulario útil y real del ámbito. No inventes datos actuales presentados como hechos (resultados, noticias, cifras reales): puede ser un texto divulgativo, un correo, un diálogo o una historia.
-Si encajan, usa algunas de estas palabras que el estudiante repasa: ${reviewWords.join(', ') || '(ninguna)'}.
-"glossary": 8 a 12 palabras o expresiones clave del texto (forma exacta tal como aparece) con traducción francesa.
-"questions": 3 preguntas de comprensión abiertas en español y una cuarta pregunta personal para que hable de su experiencia.`;
-    return chat(sys, [{ role: 'user', content: 'Escribe el texto.' }], READ_SCHEMA);
+Topic: ${topic}. Length: about ${length} words, in 2 to 4 paragraphs. Useful, real vocabulary of the field. Do not invent current facts presented as true (results, news, real figures): it can be an explanatory text, an email, a dialogue or a story.
+If they fit, use some of these words the learner is reviewing: ${reviewWords.join(', ') || '(none)'}.
+"glossary": 8 to 12 key words or expressions from the text (exact form as it appears) with their French translation.
+"questions": 3 open comprehension questions in ${A.target}, and a fourth personal question about his own experience.`;
+    return chat(sys, [{ role: 'user', content: 'Write the text.' }], READ_SCHEMA());
   }
 
   const FEEDBACK_SCHEMA = () => ({
@@ -209,9 +213,9 @@ Si encajan, usa algunas de estas palabras que el estudiante repasa: ${reviewWord
       items: {
         type: 'ARRAY', items: {
           type: 'OBJECT', properties: {
-            ok: { type: 'BOOLEAN', description: 'respuesta comprensible y correcta en cuanto al contenido' },
-            comment: { type: 'STRING', description: 'comentario corto en francés' },
-            better: { type: 'STRING', description: 'versión corregida y natural de la respuesta, en español' },
+            ok: { type: 'BOOLEAN', description: 'answer is understandable and correct in content' },
+            comment: { type: 'STRING', description: 'short comment in French' },
+            better: { type: 'STRING', description: `corrected, natural version of the answer, in ${A.target}` },
             topic: { type: 'STRING', enum: TOPIC_IDS() },
           }, required: ['ok', 'comment', 'better', 'topic'],
         },
@@ -220,29 +224,29 @@ Si encajan, usa algunas de estas palabras que el estudiante repasa: ${reviewWord
   });
 
   async function readingFeedback(text, questions, answers) {
-    const sys = `Eres profesor de español. Evalúa las respuestas de un estudiante francófono (nivel ${Store.settings.level}) a preguntas sobre un texto. Para cada respuesta: "ok" (contenido correcto), "comment" en francés (máx. 25 palabras, señala el error de lengua principal si lo hay), "better" (su respuesta corregida y natural), "topic" (punto de gramática del error principal, o "vocabulario"). Ignora tildes y puntuación (puede venir del reconocimiento de voz).`;
-    const content = 'TEXTO:\n' + text + '\n\n' + questions.map((q, i) => `PREGUNTA ${i + 1}: ${q}\nRESPUESTA: ${answers[i] || '(sin respuesta)'}`).join('\n\n');
+    const sys = `You are a teacher of ${A.target}. Assess a French-speaking learner's answers (level ${Store.settings.level}) to questions about a text. For each answer: "ok" (correct content), "comment" in French (max 25 words, point out the main language error if any), "better" (his answer corrected and natural), "topic" (grammar topic id of the main error, or "vocabulario"). Ignore accents and punctuation (may come from speech recognition).`;
+    const content = 'TEXT:\n' + text + '\n\n' + questions.map((q, i) => `QUESTION ${i + 1}: ${q}\nANSWER: ${answers[i] || '(no answer)'}`).join('\n\n');
     return chat(sys, [{ role: 'user', content }], FEEDBACK_SCHEMA());
   }
 
   // ---------- Bouée ----------
   const LOOKUP_SCHEMA = {
     type: 'OBJECT', properties: {
-      results: { type: 'ARRAY', items: { type: 'OBJECT', properties: { es: { type: 'STRING' }, fr: { type: 'STRING' }, note: { type: 'STRING' } }, required: ['es', 'fr'] } },
+      results: { type: 'ARRAY', items: { type: 'OBJECT', properties: { word: { type: 'STRING' }, fr: { type: 'STRING' }, note: { type: 'STRING' } }, required: ['word', 'fr'] } },
       synonyms: { type: 'ARRAY', items: { type: 'STRING' } },
       example: { type: 'STRING' },
-      circumlocution: { type: 'STRING', description: 'comment décrire le mot sans le connaître, en espagnol simple' },
+      circumlocution: { type: 'STRING', description: 'how to describe the thing without knowing the word' },
     }, required: ['results', 'synonyms', 'example', 'circumlocution'],
   };
 
   async function lookup(query) {
-    const sys = `Tu es un dictionnaire bilingue français-espagnol (Espagne) pour un apprenant A1-A2 qui étudie l'IA, l'aide à la décision et la finance. L'utilisateur donne un mot ou une expression (français ou espagnol). Donne : "results" (1 à 3 traductions espagnoles courantes, avec article si nom ; "fr" = sens en français ; "note" = registre ou nuance courte en français, ex. courant, soutenu, technique, familier), "synonyms" (2 à 5 synonymes espagnols ou mots proches, du plus courant au plus soutenu), "example" (une phrase d'exemple simple en espagnol), "circumlocution" (une façon simple de dire la chose en espagnol si on oublie le mot, ex. "Es una cosa que sirve para...").`;
+    const sys = `You are a French / ${A.target} bilingual dictionary for a learner at level ${Store.settings.level} who studies AI, decision support and finance. The user gives a word or expression (French or ${A.target}). Return: "results" (1 to 3 common ${A.target} translations${A.lookupArticle ? ', ' + A.lookupArticle : ''}; "fr" = meaning in French; "note" = short register or nuance in French, e.g. courant, soutenu, technique, familier), "synonyms" (2 to 5 ${A.target} synonyms or close words, from the most common to the most formal), "example" (one simple example sentence in ${A.target}), "circumlocution" (a simple way to describe the thing in ${A.target} if the word is forgotten).`;
     return chat(sys, [{ role: 'user', content: query }], LOOKUP_SCHEMA);
   }
 
   async function sessionReview(transcript, corrections) {
-    const sys = `Eres profesor de español. Escribe en FRANCÉS un bilan court (máx. 120 palabras) de la conversación de un estudiante de nivel ${Store.settings.level}: 2 puntos positivos, 3 prioridades concretas (con un ejemplo corregido cada una) y 3 frases útiles en español para reutilizar. Formato: texto simple, una idea por línea, sin markdown.`;
-    const content = 'Transcription :\n' + transcript + '\n\nErreurs relevées :\n' + corrections.map(c => `${c.original} → ${c.corrected} (${c.explication})`).join('\n');
+    const sys = `You are a teacher of ${A.target}. Write IN FRENCH a short review (max 120 words) of a learner's conversation (level ${Store.settings.level}): 2 strengths, 3 concrete priorities (each with a corrected example), and 3 useful sentences in ${A.target} to reuse next time. Format: plain text, one idea per line, no markdown.`;
+    const content = 'Transcript:\n' + transcript + '\n\nCorrections:\n' + corrections.map(c => `${c.original} → ${c.corrected} (${c.explication})`).join('\n');
     return chat(sys, [{ role: 'user', content }]);
   }
 

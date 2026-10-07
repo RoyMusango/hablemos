@@ -1,20 +1,24 @@
-// Service worker : l'app reste utilisable sans réseau (vocabulaire, verbes, grammaire).
+// Service worker : l'app reste utilisable sans réseau (vocabulaire, verbes, grammaire, prononciation).
 // Stratégie : on sert la copie en cache tout de suite et on la met à jour en arrière-plan.
-const CACHE = 'hablemos-v1';
+// Le nom du cache inclut le chemin de l'app pour que les apps de langues ne se mélangent pas.
+const VERSION = 'v20261007-0218';
+const CACHE = 'applangues' + self.location.pathname.replace(/sw\.js$/, '') + VERSION;
 const SHELL = [
-  './', './index.html', './css/style.css', './manifest.webmanifest',
+  './', './index.html', './css/style.css', './css/theme.css', './manifest.webmanifest',
   './fonts/jost-latin.woff2', './fonts/jost-latin-italic.woff2',
   './icons/favicon.svg', './icons/favicon-32.png', './icons/icon-192.png',
-  './js/conjugator.js', './js/data/vocab.js', './js/data/grammar.js', './js/data/scenarios.js',
-  './js/store.js', './js/speech.js', './js/ai.js', './js/sync.js', './js/app.js',
+  './js/lang.js', './js/conjugator.js', './js/data/vocab.js', './js/data/grammar.js', './js/data/scenarios.js', './js/data/sounds.js',
+  './js/store.js', './js/sync.js', './js/speech.js', './js/ai.js', './js/app.js',
 ];
+const PREFIX = 'applangues' + self.location.pathname.replace(/sw\.js$/, '');
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  // Ne supprime que les anciennes versions de cette app-ci
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith(PREFIX) && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', e => {

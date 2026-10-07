@@ -3,7 +3,7 @@
   "short_name": "Hablemos",
   "description": "30 minutes d'espagnol par jour : conversation, vocabulaire, conjugaison.",
   "lang": "fr",
-  "start_url": "./#hoy",
+  "start_url": "./#today",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

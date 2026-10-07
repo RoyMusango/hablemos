@@ -925,8 +925,8 @@ echar de menos | manquer (qqn me manque) | extrañar
     THEMES[id] = { id, label: t.label, course: t.course, prio: t.prio, count: 0 };
     for (const line of t.words.split('\n')) {
       if (!line.trim()) continue;
-      const [es, fr, syn] = line.split('|').map(s => (s || '').trim());
-      WORDS.push({ id: id + ':' + es, theme: id, es, fr, syn: syn ? syn.split(';').map(s => s.trim()).filter(Boolean) : [] });
+      const [tl, fr, syn] = line.split('|').map(s => (s || '').trim());
+      WORDS.push({ id: id + ':' + tl, theme: id, tl, fr, syn: syn ? syn.split(';').map(s => s.trim()).filter(Boolean) : [] });
       THEMES[id].count++;
     }
   }

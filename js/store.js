@@ -1,6 +1,9 @@
 // État persistant (localStorage) : réglages, points faibles, cartes, historique.
 (function (global) {
-  const KEY = 'espanol-app-v1';
+  const KEY = LANG.storageKey;
+  // Clés IA communes aux apps de langues (même adresse GitHub Pages) : une seule configuration pour toutes
+  const SHARED_KEYS = 'applangues-keys';
+  const KEY_FIELDS = ['geminiKey', 'oaBase', 'oaKey', 'oaModel'];
   const INTERVALS = [0, 1, 2, 4, 7, 15, 30, 60]; // jours, par boîte de Leitner
 
   const DEFAULT = {
@@ -10,7 +13,8 @@
       oaBase: 'https://api.groq.com/openai/v1', oaKey: '', oaModel: 'llama-3.3-70b-versatile',
       dailyMinutes: 30, dailyRequests: 300, newPerDay: 12,
       ttsVoice: '', ttsRate: 0.9, autoSpeak: true, handsFree: false,
-      level: 'A1-A2', showTranslation: false, voiceByRole: true,
+      level: 'A1-A2', showTranslation: false, voiceByRole: true, voiceVariant: '',
+      ...LANG.defaults,
     },
     topics: {},   // id -> { n, ok, score, last }
     cards: {},    // id -> { box, due, lapses }
@@ -19,8 +23,8 @@
     errors: [],   // corrections reçues
     weakSelf: [], // points faibles déclarés
     conj: { tenses: {}, verbs: {} }, // maîtrise de la conjugaison par temps et par verbe
-    prefsTs: 0,
-    peers: {},    // compteurs des autres appareils (remplis par la synchro)   // date de la dernière modification des préférences partagées entre appareils
+    prefsTs: 0,   // date de la dernière modification des préférences partagées entre appareils
+    peers: {},    // compteurs des autres appareils (remplis par la synchro)
   };
   // Réglages communs à tous les appareils (synchronisés). Les clés, la voix, etc. restent propres à chaque appareil.
   const SHARED_PREFS = ['dailyMinutes', 'dailyRequests', 'newPerDay', 'level', 'vocabThemes'];
@@ -35,6 +39,21 @@
     try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { state = {}; }
     for (const k of Object.keys(DEFAULT)) if (state[k] === undefined) state[k] = structuredClone(DEFAULT[k]);
     state.settings = Object.assign(structuredClone(DEFAULT.settings), state.settings);
+    // Clés partagées : celles déjà saisies dans une autre app de langues l'emportent
+    let shared = {};
+    try { shared = JSON.parse(localStorage.getItem(SHARED_KEYS)) || {}; } catch (e) { }
+    let changed = false;
+    for (const k of KEY_FIELDS) {
+      if (shared[k]) state.settings[k] = shared[k];
+      else if (state.settings[k] && k !== 'oaBase' && k !== 'oaModel') { shared[k] = state.settings[k]; changed = true; }
+    }
+    if (changed) localStorage.setItem(SHARED_KEYS, JSON.stringify(shared));
+  }
+  function setSharedKey(k, v) {
+    let shared = {};
+    try { shared = JSON.parse(localStorage.getItem(SHARED_KEYS)) || {}; } catch (e) { }
+    shared[k] = v; localStorage.setItem(SHARED_KEYS, JSON.stringify(shared));
+    state.settings[k] = v; save();
   }
   let saveTimer = null;
   function save() {
@@ -175,6 +194,6 @@
   load();
   global.Store = {
     get state() { return state; }, get settings() { return state.settings; },
-    save, sync, statusObj, dayAgg, touchPrefs, replaceState, KEY, SHARED_PREFS, today, day, conjTense, recordConj, troubleVerbs, themeStats, totalMin, topic, recordTopic, weakest, card, gradeCard, addCustom, exportData, importData, INTERVALS,
+    save, sync, statusObj, dayAgg, touchPrefs, setSharedKey, replaceState, KEY, SHARED_PREFS, today, day, conjTense, recordConj, troubleVerbs, themeStats, totalMin, topic, recordTopic, weakest, card, gradeCard, addCustom, exportData, importData, INTERVALS,
   };
 })(window);

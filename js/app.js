@@ -1,4 +1,5 @@
-// Interface de l'application.
+// Interface de l'application (moteur commun aux apps de langues).
+// Tout ce qui dépend de la langue vient de LANG (js/lang.js), de Conj (js/conjugator.js) et des données (js/data).
 (function () {
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -7,9 +8,11 @@
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const S = () => Store.settings;
+  const L = LANG, T = LANG.t, N = LANG.nav;
   const topicLabel = id => (GRAMMAR.TOPICS[id] && GRAMMAR.TOPICS[id].label) || GRAMMAR.EXTRA_TOPICS[id] || id;
   const pct = x => Math.round(x * 100);
   const meterCls = p => p < 45 ? 'low' : p < 70 ? 'mid' : 'high';
+  const SOUNDS_ON = typeof SOUNDS !== 'undefined' && SOUNDS.length;
 
   // ---------- Icônes ----------
   const ICONS = {
@@ -25,18 +28,24 @@
     bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     flame: '<path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z"/>',
-    book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
   };
   const icon = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
   const sayBtn = (text, title = 'Écouter') => `<button class="say" data-say="${esc(text)}" title="${title}">${icon('sound')}</button>`;
+
+  // ---------- En-tête : marque et navigation ----------
+  document.title = L.title;
+  $('.brand').innerHTML = `<span class="brand-mark"></span>${esc(L.appName)}`;
+  const NAV = ['today', 'speak', 'words', 'verbs', ...(SOUNDS_ON ? ['sounds'] : []), 'grammar', 'read', 'progress'];
+  $('#nav').innerHTML = NAV.map(k => `<a href="#${k}" data-view="${k}">${esc(N[k])}</a>`).join('');
+  $('#gearLink').href = '#settings';
   $('#gearLink').innerHTML = icon('gear');
   $('#fabBouee').innerHTML = icon('buoy') + '<span>Un mot me manque</span>';
 
   // ---------- Comparaison de réponses ----------
   const stripAccents = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const norm = s => String(s).toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[¿?¡!.,;:«»"…]/g, ' ').replace(/\s+/g, ' ').trim();
-  const noArticle = s => s.replace(/^(el|la|los|las|un|una|unos|unas)\s+/, '');
-  const noPronoun = s => s.replace(/^(yo|tú|tu|él|el|ella|usted|nosotros|nosotras|vosotros|vosotras|ellos|ellas|ustedes)\s+/, '');
+  const norm = s => String(s).toLowerCase().replace(/[’`]/g, "'").replace(/\(.*?\)/g, ' ').replace(/[¿?¡!.,;:«»"…]/g, ' ').replace(/\s+/g, ' ').trim();
+  const noArticle = s => s.replace(L.normalize.articles, '');
+  const noPronoun = s => s.replace(L.normalize.pronouns, '');
   function lev(a, b) {
     const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 3;
     const d = Array.from({ length: m + 1 }, (_, i) => [i]);
@@ -50,7 +59,7 @@
     let a = norm(answer); if (!a) return 'wrong';
     if (pronoun) a = noPronoun(a);
     const variants = [];
-    for (const x of accepted) for (const v of String(x).split('/')) { const n = norm(v); if (n) { variants.push(n, noArticle(n)); } }
+    for (const x of accepted) for (const v of String(x).split('/')) { let n = norm(v); if (pronoun) n = noPronoun(n); if (n) variants.push(n, noArticle(n)); }
     const aa = [a, noArticle(a)];
     if (variants.some(v => aa.includes(v))) return 'ok';
     if (variants.some(v => aa.map(stripAccents).includes(stripAccents(v)))) return 'accents';
@@ -78,8 +87,7 @@
   window.addEventListener('sync-status', () => updateChip());
   // Données reçues d'un autre appareil : on rafraîchit les pages de synthèse
   window.addEventListener('sync-updated', () => {
-    const r = (location.hash.slice(1) || 'hoy').split('/')[0];
-    if (['hoy', 'progreso'].includes(r)) go(); else updateChip();
+    if (['today', 'progress'].includes(currentRoute())) go(); else updateChip();
   });
   function streak() {
     let n = 0, i = Store.totalMin(Store.today()) >= 10 ? 0 : -1;
@@ -92,8 +100,8 @@
     return { vocab, gram, conv: Math.max(5, D - vocab - gram) };
   }
 
-  // ---------- Téléphone : configuration par lien ----------
-  const PAGES_URL = location.hostname.endsWith('github.io') ? location.origin + location.pathname : 'https://roymusango.github.io/hablemos/';
+  // ---------- Configuration d'un appareil par lien (QR code) ----------
+  const PAGES_URL = location.hostname.endsWith('github.io') ? location.origin + location.pathname : L.pagesUrl;
   const b64url = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const fromB64url = str => decodeURIComponent(escape(atob(str.replace(/-/g, '+').replace(/_/g, '/'))));
   function loadScript(src) {
@@ -107,12 +115,12 @@
     if (!m) return;
     try {
       const p = JSON.parse(fromB64url(m[1]));
-      if (p.g) { S().geminiKey = p.g; S().provider = 'gemini'; }
+      if (p.g) { Store.setSharedKey('geminiKey', p.g); S().provider = 'gemini'; }
       if (p.t && p.r) Sync.setCfg({ token: p.t, repo: p.r });
       Store.save();
-      setTimeout(() => toast('Appareil configuré : clé IA et synchro activées.', 5000), 300);
+      setTimeout(() => toast('Appareil configuré : clé IA et synchro activées pour toutes tes apps de langues.', 5000), 300);
     } catch (e) { }
-    history.replaceState(null, '', location.pathname + '#hoy'); // retire les clés de l'adresse
+    history.replaceState(null, '', location.pathname + '#today'); // retire les clés de l'adresse
   }
 
   // ---------- Toast ----------
@@ -124,20 +132,23 @@
     document.body.appendChild(t);
     setTimeout(() => t.remove(), ms);
   }
-  window.addEventListener('tts-missing', e => toast(esc(e.detail) + ' <a href="#ajustes" class="link">Réglages voix</a>', 9000));
+  window.addEventListener('tts-missing', e => toast(esc(e.detail) + ' <a href="#settings" class="link">Réglages voix</a>', 9000));
 
   // ---------- Routeur ----------
   const routes = {};
+  // Anciennes adresses de l'app d'espagnol, toujours acceptées
+  const ALIASES = { hoy: 'today', hablar: 'speak', palabras: 'words', verbos: 'verbs', gramatica: 'grammar', leer: 'read', progreso: 'progress', ajustes: 'settings' };
+  const currentRoute = () => { const n = (location.hash.slice(1) || 'today').split('/')[0]; return ALIASES[n] || n; };
   function go() {
     if (currentListener) currentListener.stop();
     Speech.stopSpeaking();
     document.onkeydown = null;
     document.body.classList.remove('in-chat');
-    const [name, arg] = (location.hash.slice(1) || 'hoy').split('/');
-    const r = routes[name] ? name : 'hoy';
+    const parts = location.hash.slice(1).split('/');
+    const r = routes[currentRoute()] ? currentRoute() : 'today';
     $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === r));
     area = null;
-    routes[r](arg);
+    routes[r](parts[1], parts[2]);
     window.scrollTo(0, 0);
     updateChip();
   }
@@ -154,6 +165,7 @@
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal' || e.target.closest('[data-close]')) closeModal(); });
 
   const head = (eyebrow, title, lead = '') => `<div class="page-head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ''}</div>`;
+  const backLink = (href, label) => `<a href="${href}" class="link small" style="display:inline-flex;gap:6px;text-decoration:none;margin-bottom:18px">${icon('back')} ${esc(label)}</a>`;
 
   // Bouton micro branché sur un champ texte
   function micFor(btn, input, { onDone, autoSend } = {}) {
@@ -185,34 +197,29 @@
   function reviewWords(themes = []) {
     const words = allWords().filter(w => { const c = Store.card(w.id); return c && c.box > 0 && (c.lapses > 0 || c.box <= 2); });
     words.sort((a, b) => (themes.includes(b.theme) - themes.includes(a.theme)) || (Store.card(b.id).lapses - Store.card(a.id).lapses));
-    return words.slice(0, 8).map(w => speakable(w.es));
+    return words.slice(0, 8).map(w => speakable(w.tl));
   }
 
-  // Classement des priorités : grammaire, conjugaison, vocabulaire
-  const TENSE_TOPIC = { presente: 'presente', indefinido: 'indefinido', imperfecto: 'imperfecto', perfecto: 'perfecto', futuro: 'futuro', ir_a: 'futuro', gerundio: 'gerundio', imperativo: 'imperativo' };
-  const TRAIN_TENSES = ['presente', 'indefinido', 'imperfecto', 'perfecto', 'futuro', 'gerundio', 'imperativo'];
-  const TENSE_NAME = { presente: 'Presente', indefinido: 'Indefinido', imperfecto: 'Imperfecto', perfecto: 'Perfecto', futuro: 'Futuro', ir_a: 'Ir a + infinitivo', gerundio: 'Estar + gerundio', imperativo: 'Imperativo (tú)' };
-  const TENSE_PRIORITY = ['indefinido', 'perfecto', 'imperfecto', 'presente', 'futuro', 'gerundio', 'imperativo'];
-  function weakestTense() { return TENSE_PRIORITY.map(t => ({ t, s: Store.conjTense(t).score })).sort((a, b) => a.s - b.s)[0]; }
+  // ---------- Priorités : grammaire, verbes, vocabulaire ----------
+  function weakestTense() { return Conj.PRIORITY.map(t => ({ t, s: Store.conjTense(t).score })).sort((a, b) => a.s - b.s)[0]; }
   function weakestTheme() {
     const st = Store.themeStats(allWords());
     const cand = Object.entries(st).filter(([id, s]) => s.seen >= 3 && VOCAB.THEMES[id]).map(([id, s]) => ({ id, r: s.lapses / s.seen, s }));
     cand.sort((a, b) => b.r - a.r);
     return cand.length && cand[0].r > 0 ? cand[0] : null;
   }
-
   function suggestScenarios(n = 3) {
     const weak = Store.weakest(GRAMMAR.ORDER).slice(0, 4);
-    return SCENARIOS.filter(s => s.id !== 'libre').map(s => {
+    return SCENARIOS.filter(s => !s.free).map(s => {
       let sc = 0; weak.forEach((w, i) => { if (s.targets.includes(w)) sc += 4 - i; });
-      if (s.cat === 'Erasmus & TFE') sc += 2; else if (s.cat === 'Barça') sc += 1.5;
+      sc += L.priorityCats[s.cat] || 0;
       return { s, sc: sc + Math.random() * 2.5 };
     }).sort((a, b) => b.sc - a.sc).slice(0, n).map(x => x.s);
   }
 
-  const initials = name => name.replace(/^(Prof\.|Dra\.|El|La|Un|Una)\s+/i, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = name => name.replace(/^(Prof\.|Dra\.|Dr\.|Dr|Ms\.|Mr\.|Mevrouw|Meneer|El|La|Un|Una|The|De|Een)\s+/i, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   function scnCard(s, rec = false) {
-    return `<a class="scn" href="#hablar/${s.id}">
+    return `<a class="scn" href="#speak/${s.id}">
       ${rec ? '<span class="tag new rec">Pour toi</span>' : ''}
       <span class="eyebrow accent">${esc(s.cat)}${s.written ? ' · écrit' : ''}</span>
       <h3>${esc(s.title)}</h3><p>${esc(s.goal)}</p>
@@ -221,9 +228,9 @@
   }
 
   // =====================================================================
-  // HOY : tableau de bord du jour
+  // TODAY : tableau de bord du jour
   // =====================================================================
-  routes.hoy = () => {
+  routes.today = () => {
     const d = Store.dayAgg(), t = planTargets(), D = S().dailyMinutes;
     const total = Store.totalMin(Store.today());
     const req = d.requests, budget = S().dailyRequests;
@@ -231,11 +238,16 @@
     const weakT = Store.weakest(GRAMMAR.ORDER);
     const wt = weakestTense(), wth = weakestTheme();
     const trouble = Store.troubleVerbs().slice(0, 4);
-    const date = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const date = new Date().toLocaleDateString(L.locale, { weekday: 'long', day: 'numeric', month: 'long' });
     const sugg = suggestScenarios(3);
     const vocabCount = buildVocabQueue().length;
-    const gramHref = wt.s < Store.topic(weakT[0]).score ? '#verbos' : '#gramatica/' + weakT[0];
     const left = Math.max(0, D - total);
+    // Étape 2 : prononciation tant qu'elle n'est pas solide (débutants), sinon verbes ou grammaire selon le plus faible
+    const pron = Store.topic('pronunciacion');
+    let step2;
+    if (SOUNDS_ON && L.soundsFirst && (pron.n < 30 || pron.score < 0.75)) step2 = { href: '#sounds', desc: `Écoute une voix native et répète : les sons de base du ${L.langNameFr}.` };
+    else if (wt.s < Store.topic(weakT[0]).score) step2 = { href: '#verbs', desc: `Verbes ciblés : <b>${esc(Conj.NAMES[wt.t])}</b>${trouble.length ? `, avec tes verbes difficiles (${trouble.map(esc).join(', ')})` : ''}.` };
+    else step2 = { href: '#grammar/' + weakT[0], desc: `Point faible du moment : <b>${esc(topicLabel(weakT[0]))}</b>.` };
 
     const step = (n, key, title, desc, href, btn) => {
       const done = d.min[key], target = t[key], p = Math.min(100, done / target * 100);
@@ -245,8 +257,8 @@
         <a class="btn ${p >= 100 ? 'quiet' : ''}" href="${href}">${btn} ${icon('arrow')}</a></div>`;
     };
 
-    // Expression du jour : choisie selon la date parmi le registre soutenu, la survie et le vocabulaire technique
-    const pool = VOCAB.WORDS.filter(w => ['soutenu', 'supervivencia', 'conectores', 'banca', 'rag', 'ia', 'decision'].includes(w.theme) && w.syn.length);
+    // Expression du jour : choisie selon la date
+    const pool = VOCAB.WORDS.filter(w => L.wotdThemes.includes(w.theme) && w.syn.length);
     const seed = [...Store.today()].reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
     const wotd = pool[Math.abs(seed) % pool.length];
 
@@ -260,43 +272,43 @@
       </div>
       <div class="day-meter">${segs}</div>
       ${total < D && d.skip ? `<div class="notice" style="margin-top:24px">Rappels coupés pour aujourd’hui. <button class="link" id="unskip">Les réactiver</button></div>` : ''}
-      ${total >= D ? `<div class="notice done" style="margin-top:24px">Plus de rappel aujourd’hui. Tu peux continuer si tu en as envie${AI.hasKey() ? ` : il te reste environ ${budget - req} requêtes IA, soit près de ${convAffordable} min de conversation.` : '.'}</div>` : ''}
-      ${AI.hasKey() ? '' : `<div class="notice" style="margin-top:24px">La conversation avec l’IA n’est pas encore activée. <a class="link" href="#ajustes">Ajoute ta clé Gemini gratuite</a>, c’est l’affaire de deux minutes. En attendant, l’oral guidé fonctionne hors ligne.</div>`}
+      ${total >= D ? `<div class="notice done" style="margin-top:24px">Plus de rappel aujourd’hui pour le ${L.langNameFr}. Tu peux continuer si tu en as envie${AI.hasKey() ? ` : il te reste environ ${budget - req} requêtes IA, soit près de ${convAffordable} min de conversation.` : '.'}</div>` : ''}
+      ${AI.hasKey() ? '' : `<div class="notice" style="margin-top:24px">La conversation avec l’IA n’est pas encore activée. <a class="link" href="#settings">Ajoute ta clé Gemini gratuite</a>, c’est l’affaire de deux minutes. En attendant, l’oral guidé fonctionne hors ligne.</div>`}
 
       <section class="section">
-        <div class="section-head"><h2>Tu sesión</h2><span class="muted small">${D} minutes</span></div>
+        <div class="section-head"><h2>${esc(T.session)}</h2><span class="muted small">${D} minutes</span></div>
         <div class="steps">
-          ${step('01', 'vocab', 'Palabras', `${vocabCount} carte${vocabCount > 1 ? 's' : ''} à revoir ou découvrir. Réponds à voix haute.`, '#palabras', 'Réviser')}
-          ${step('02', 'gram', 'Verbos y gramática', gramHref === '#verbos' ? `Conjugaison ciblée : <b>${TENSE_NAME[wt.t]}</b>${trouble.length ? `, avec tes verbes difficiles (${trouble.map(esc).join(', ')})` : ''}.` : `Point faible du moment : <b>${esc(topicLabel(weakT[0]))}</b>.`, gramHref, 'S’entraîner')}
-          ${step('03', 'conv', 'Hablar', AI.hasKey() ? `Jeu de rôle avec ${esc(sugg[0].who)} : <b>${esc(sugg[0].title)}</b>.` : 'Oral guidé : tu réponds à voix haute à des questions.', AI.hasKey() ? '#hablar/' + sugg[0].id : '#hablar/oral', 'Parler')}
+          ${step('01', 'vocab', esc(T.stepWords), `${vocabCount} carte${vocabCount > 1 ? 's' : ''} à revoir ou découvrir. Réponds à voix haute.`, '#words', 'Réviser')}
+          ${step('02', 'gram', esc(step2.href === '#sounds' ? N.sounds : T.stepGrammar), step2.desc, step2.href, 'S’entraîner')}
+          ${step('03', 'conv', esc(T.stepSpeak), AI.hasKey() ? `Jeu de rôle avec ${esc(sugg[0].who)} : <b>${esc(sugg[0].title)}</b>.` : 'Oral guidé : tu réponds à voix haute à des questions.', AI.hasKey() ? '#speak/' + sugg[0].id : '#speak/oral', 'Parler')}
         </div>
       </section>
 
       <section class="section">
-        <div class="section-head"><h2>Tus prioridades</h2><a class="link small" href="#progreso">Voir tout</a></div>
+        <div class="section-head"><h2>${esc(T.priorities)}</h2><a class="link small" href="#progress">Voir tout</a></div>
         <div class="prio-grid">
-          <a class="prio" href="#gramatica/${weakT[0]}"><span class="eyebrow accent">Grammaire</span><h3>${esc(topicLabel(weakT[0]))}</h3>
+          <a class="prio" href="#grammar/${weakT[0]}"><span class="eyebrow accent">Grammaire</span><h3>${esc(topicLabel(weakT[0]))}</h3>
             <p>${Store.topic(weakT[0]).n ? `Maîtrise estimée : ${pct(Store.topic(weakT[0]).score)} %.` : 'Pas encore évalué : commence par la fiche et une série d’exercices.'}</p>
             <div class="meter ${meterCls(pct(Store.topic(weakT[0]).score))}"><i style="width:${Store.topic(weakT[0]).n ? pct(Store.topic(weakT[0]).score) : 0}%"></i></div></a>
-          <a class="prio" href="#verbos"><span class="eyebrow accent">Conjugaison</span><h3>${TENSE_NAME[wt.t]}</h3>
+          <a class="prio" href="#verbs"><span class="eyebrow accent">${esc(T.verbsEyebrow)}</span><h3>${esc(Conj.NAMES[wt.t])}</h3>
             <p>${trouble.length ? `Verbes à revoir : ${trouble.map(esc).join(', ')}.` : Store.conjTense(wt.t).n ? `Maîtrise estimée : ${pct(wt.s)} %.` : 'L’entraîneur adapte les temps et les verbes à tes erreurs.'}</p>
             <div class="meter ${meterCls(pct(wt.s))}"><i style="width:${Store.conjTense(wt.t).n ? pct(wt.s) : 0}%"></i></div></a>
-          <a class="prio" href="#palabras/temas"><span class="eyebrow accent">Vocabulaire</span><h3>${wth ? esc(themeLabel(wth.id)) : 'Corpus de base'}</h3>
-            <p>${wth ? `${wth.s.lapses} oubli${wth.s.lapses > 1 ? 's' : ''} sur ${wth.s.seen} mots vus. Ce thème revient plus souvent.` : `${activeThemes().length} thèmes actifs, dont le technique (IA, banque, RAG) et le registre soutenu.`}</p>
+          <a class="prio" href="#words/themes"><span class="eyebrow accent">Vocabulaire</span><h3>${wth ? esc(themeLabel(wth.id)) : 'Corpus de base'}</h3>
+            <p>${wth ? `${wth.s.lapses} oubli${wth.s.lapses > 1 ? 's' : ''} sur ${wth.s.seen} mots vus. Ce thème revient plus souvent.` : esc(T.vocabPrioDefault(activeThemes().length))}</p>
             <div class="meter ${wth ? meterCls(pct(wth.s.learned / wth.s.total)) : ''}"><i style="width:${wth ? pct(wth.s.learned / wth.s.total) : 0}%"></i></div></a>
         </div>
       </section>
 
-      <section class="section">
-        <div class="section-head"><h2>Expresión del día</h2><span class="muted small">${esc(themeLabel(wotd.theme))}</span></div>
+      ${wotd ? `<section class="section">
+        <div class="section-head"><h2>${esc(T.wotd)}</h2><span class="muted small">${esc(themeLabel(wotd.theme))}</span></div>
         <div class="wotd">
-          <div><div class="es">${esc(wotd.es)} ${sayBtn(speakable(wotd.es))}</div><p class="muted" style="margin-top:8px">${esc(wotd.fr)}</p></div>
+          <div><div class="es">${esc(wotd.tl)} ${sayBtn(speakable(wotd.tl))}</div><p class="muted" style="margin-top:8px">${esc(wotd.fr)}</p></div>
           <div><span class="eyebrow">Pour varier</span><div class="syns">${wotd.syn.map(s => `<div class="syn"><b>${esc(s)}</b> ${sayBtn(speakable(s))}</div>`).join('')}</div></div>
         </div>
-      </section>
+      </section>` : ''}
 
       <section class="section">
-        <div class="section-head"><h2>Para hablar hoy</h2><a class="link small" href="#hablar">Toutes les situations</a></div>
+        <div class="section-head"><h2>${esc(T.speakToday)}</h2><a class="link small" href="#speak">Toutes les situations</a></div>
         <div class="scn-grid">${sugg.map(s => scnCard(s)).join('')}</div>
       </section>
 
@@ -307,24 +319,24 @@
   };
 
   // =====================================================================
-  // HABLAR : situations + conversation
+  // SPEAK : situations + conversation
   // =====================================================================
-  let hablarFilter = 'Tout';
-  routes.hablar = (id) => {
+  let speakFilter = 'Tout';
+  routes.speak = (id) => {
     if (id === 'oral') return oralGuide();
     const scn = SCENARIOS.find(s => s.id === id);
     if (scn) return AI.hasKey() ? chatView(scn) : oralGuide();
     const cats = ['Tout', ...new Set(SCENARIOS.map(s => s.cat))];
     const rec = new Set(suggestScenarios(3).map(s => s.id));
     const render = () => {
-      const list = SCENARIOS.filter(s => hablarFilter === 'Tout' || s.cat === hablarFilter);
-      $('#chips').innerHTML = cats.map(c => `<button class="chip ${c === hablarFilter ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+      const list = SCENARIOS.filter(s => speakFilter === 'Tout' || s.cat === speakFilter);
+      $('#chips').innerHTML = cats.map(c => `<button class="chip ${c === speakFilter ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
       $('#grid').innerHTML = list.map(s => scnCard(s, rec.has(s.id))).join('');
     };
-    view.innerHTML = head('Parler', 'Hablar', 'Choisis une situation. Ton interlocuteur joue son rôle, corrige tes phrases sans casser la conversation et t’aide si tu bloques. Si un mot te manque, dis-le en français : tu recevras le mot espagnol et ses synonymes.')
-      + (AI.hasKey() ? '' : `<div class="notice">Sans clé IA, tu peux faire l’<a class="link" href="#hablar/oral">oral guidé hors ligne</a>, ou <a class="link" href="#ajustes">ajouter une clé</a>.</div>`)
+    view.innerHTML = head('Parler', esc(N.speak), `Choisis une situation. Ton interlocuteur joue son rôle, corrige tes phrases sans casser la conversation et t’aide si tu bloques. Si un mot te manque, dis-le en français : tu recevras le mot en ${L.langNameFr} et ses synonymes.`)
+      + (AI.hasKey() ? '' : `<div class="notice">Sans clé IA, tu peux faire l’<a class="link" href="#speak/oral">oral guidé hors ligne</a>, ou <a class="link" href="#settings">ajouter une clé</a>.</div>`)
       + '<div class="chips" id="chips"></div><div class="scn-grid" id="grid"></div>';
-    $('#chips').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { hablarFilter = b.dataset.cat; render(); } });
+    $('#chips').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { speakFilter = b.dataset.cat; render(); } });
     render();
   };
 
@@ -332,10 +344,10 @@
     area = 'conv';
     document.body.classList.add('in-chat');
     const g = () => S().voiceByRole ? scn.g : null;
-    const conv = { scn, history: [{ role: 'user', content: '(Empieza la conversación.)' }, { role: 'assistant', content: scn.opener }], msgs: [], corrections: [], vocab: [], busy: false };
+    const conv = { scn, history: [{ role: 'user', content: T.startConv }, { role: 'assistant', content: scn.opener }], msgs: [], corrections: [], vocab: [], busy: false };
     view.innerHTML = `
       <div class="chat-page">
-        <a href="#hablar" class="link small" style="margin-bottom:18px;display:inline-flex;gap:6px;text-decoration:none">${icon('back')} Situations</a>
+        ${backLink('#speak', 'Situations')}
         <div class="chat-top"><span class="avatar ${scn.g}">${initials(scn.who)}</span>
           <div><h1>${esc(scn.title)}</h1><div class="sub">Avec ${esc(scn.who)} · ${esc(scn.cat)}</div></div></div>
         <div class="goal">${icon('target')}<span>${esc(scn.goal)}</span></div>
@@ -369,7 +381,7 @@
       el.className = 'msg ai';
       el.innerHTML = `<span class="name">${esc(scn.who)}</span><div class="bubble">${esc(m.text)}<div class="tr">${esc(m.tr || '')}</div></div>
         <div class="msg-tools"><button data-a="say" title="Réécouter">${icon('sound')}</button><button data-a="slow" title="Plus lentement">0.7×</button>${m.tr ? '<button data-a="tr" title="Traduction">FR</button>' : ''}</div>
-        ${m.vocab && m.vocab.length ? `<div class="words-pop">${m.vocab.map(v => `<span><b>${esc(v.es)}</b> ${esc(v.fr)}${v.syn && v.syn.length ? ` <span class="muted">· ${esc(v.syn.join(', '))}</span>` : ''}</span>`).join('')}</div>` : ''}`;
+        ${m.vocab && m.vocab.length ? `<div class="words-pop">${m.vocab.map(v => `<span><b>${esc(v.word)}</b> ${esc(v.fr)}${v.syn && v.syn.length ? ` <span class="muted">· ${esc(v.syn.join(', '))}</span>` : ''}</span>`).join('')}</div>` : ''}`;
       el.querySelector('.msg-tools').onclick = e => {
         const a = e.target.closest('[data-a]'); if (!a) return;
         if (a.dataset.a === 'say') Speech.speak(m.text, { gender: g() });
@@ -380,6 +392,8 @@
       if (S().autoSpeak && !scn.written) {
         Speech.speak(m.text, { gender: g(), onend: () => { if (S().handsFree && listener && $('#mic') && !conv.busy && !listener.active) { currentListener = listener; input.value = ''; listener.start({ autoStopAfterSilence: 2500 }); } } });
       }
+      // Débutants : l'idée de réponse s'affiche d'office
+      if (L.autoHint && m.suggestion) showSuggestion(m.suggestion);
     }
     function addMe(text) {
       const el = document.createElement('div');
@@ -389,6 +403,13 @@
       return el;
     }
     const fixHtml = c => `<div class="fix"><s>${esc(c.original)}</s> <b>${esc(c.corrected)}</b><span class="why">${esc(c.explication)}</span></div>`;
+    function showSuggestion(sugg) {
+      const s = $('#suggest');
+      s.innerHTML = sugg
+        ? `<span class="eyebrow">Idée de réponse</span><b>${esc(sugg)}</b> ${sayBtn(sugg)}<div class="muted small">Reformule-la avec tes mots plutôt que de la lire.</div>`
+        : `<span class="eyebrow">Phrases de secours</span>${T.rescue.map(r => `<i>${esc(r)}</i>`).join(' · ')}`;
+      s.classList.remove('hidden');
+    }
 
     async function send(text) {
       text = (text || '').trim();
@@ -412,11 +433,11 @@
         });
         if (Store.state.errors.length > 500) Store.state.errors.splice(0, Store.state.errors.length - 500);
         if (!corr.length && text.split(/\s+/).length >= 5) scn.targets.forEach(t => Store.recordTopic(t, true, 0.05));
-        (r.vocab || []).forEach(v => { if (v.es && v.fr) conv.vocab.push(v); });
+        (r.vocab || []).forEach(v => { if (v.word && v.fr) conv.vocab.push(v); });
         conv.history.push({ role: 'assistant', content: r.reply });
         conv.suggestion = r.suggestion;
         Store.save();
-        addAI({ text: r.reply, tr: r.translation_fr, vocab: r.vocab });
+        addAI({ text: r.reply, tr: r.translation_fr, vocab: r.vocab, suggestion: r.suggestion });
       } catch (e) {
         conv.history.pop();
         el.remove();
@@ -429,33 +450,27 @@
     $('#send').onclick = () => { if (listener && listener.active) listener.stop(); send(input.value); };
     input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); } });
     document.onkeydown = e => { if (e.code === 'Space' && document.activeElement !== input && $('#mic')) { e.preventDefault(); $('#mic').click(); } };
-    $('#help').onclick = () => {
-      const s = $('#suggest');
-      s.innerHTML = conv.suggestion
-        ? `<span class="eyebrow">Idée de réponse</span><b>${esc(conv.suggestion)}</b> ${sayBtn(conv.suggestion)}<div class="muted small">Reformule-la avec tes mots plutôt que de la lire.</div>`
-        : `<span class="eyebrow">Phrases de secours</span><i>No entiendo, ¿puedes repetir?</i> · <i>¿Cómo se dice … en español?</i> · <i>Es una cosa que sirve para…</i>`;
-      s.classList.remove('hidden');
-    };
+    $('#help').onclick = () => showSuggestion(conv.suggestion);
     $('#endBtn').onclick = () => endConversation(conv);
-    addAI({ text: scn.opener });
+    addAI({ text: scn.opener, tr: scn.openerFr, suggestion: scn.hint });
   }
 
   function endConversation(conv) {
     if (currentListener) currentListener.stop();
     Speech.stopSpeaking();
     let added = 0;
-    conv.corrections.forEach(c => { if (Store.addCustom({ id: 'err:' + norm(c.corrected), theme: 'erreurs', es: c.corrected, fr: `Corrige : « ${c.original} » (${c.explication})`, syn: [] })) added++; });
-    conv.vocab.forEach(v => { if (Store.addCustom({ id: 'conv:' + norm(v.es), theme: 'conversation', es: v.es, fr: v.fr, syn: v.syn || [] })) added++; });
+    conv.corrections.forEach(c => { if (Store.addCustom({ id: 'err:' + norm(c.corrected), theme: 'erreurs', tl: c.corrected, fr: `Corrige : « ${c.original} » (${c.explication})`, syn: [] })) added++; });
+    conv.vocab.forEach(v => { if (Store.addCustom({ id: 'conv:' + norm(v.word), theme: 'conversation', tl: v.word, fr: v.fr, syn: v.syn || [] })) added++; });
     const n = conv.msgs.filter(m => m.role === 'ai').length - 1;
     const box = modal(`<span class="eyebrow">Bilan</span><h2>${esc(conv.scn.title)}</h2>
       <div class="stat-row" style="margin-top:20px"><div><b>${n}</b><span>échanges</span></div><div><b>${conv.corrections.length}</b><span>corrections</span></div><div><b>${conv.vocab.length}</b><span>mots nouveaux</span></div><div><b>${added}</b><span>cartes ajoutées</span></div></div>
-      ${conv.corrections.length ? `<h3 style="margin-bottom:10px">À retenir</h3>${conv.corrections.map(c => `<div class="fix"><s>${esc(c.original)}</s> <b>${esc(c.corrected)}</b><span class="why">${esc(c.explication)}</span></div>`).join('')}` : '<p>Aucune erreur relevée. ¡Muy bien!</p>'}
-      ${conv.vocab.length ? `<h3 style="margin:20px 0 10px">Vocabulaire</h3><table>${conv.vocab.map(v => `<tr><td><b>${esc(v.es)}</b> ${sayBtn(v.es)}</td><td>${esc(v.fr)}</td><td class="muted">${esc((v.syn || []).join(', '))}</td></tr>`).join('')}</table>` : ''}
+      ${conv.corrections.length ? `<h3 style="margin-bottom:10px">À retenir</h3>${conv.corrections.map(c => `<div class="fix"><s>${esc(c.original)}</s> <b>${esc(c.corrected)}</b><span class="why">${esc(c.explication)}</span></div>`).join('')}` : `<p>Aucune erreur relevée. ${esc(T.wellDone)}</p>`}
+      ${conv.vocab.length ? `<h3 style="margin:20px 0 10px">Vocabulaire</h3><table>${conv.vocab.map(v => `<tr><td><b>${esc(v.word)}</b> ${sayBtn(v.word)}</td><td>${esc(v.fr)}</td><td class="muted">${esc((v.syn || []).join(', '))}</td></tr>`).join('')}</table>` : ''}
       <div id="aiReview"></div>
-      <div class="row"><button class="btn" id="getReview">Bilan détaillé (1 requête)</button><a class="btn ghost" href="#hoy" data-close>Retour à la séance</a></div>`);
+      <div class="row"><button class="btn" id="getReview">Bilan détaillé (1 requête)</button><a class="btn ghost" href="#today" data-close>Retour à la séance</a></div>`);
     $('#getReview', box).onclick = async (e) => {
       e.target.disabled = true; $('#aiReview', box).innerHTML = '<p class="thinking">Analyse en cours…</p>';
-      const transcript = conv.history.slice(1).map(m => (m.role === 'user' ? 'Estudiante: ' : conv.scn.who + ': ') + m.content).join('\n');
+      const transcript = conv.history.slice(1).map(m => (m.role === 'user' ? 'Learner: ' : conv.scn.who + ': ') + m.content).join('\n');
       try { $('#aiReview', box).innerHTML = `<div class="review">${esc(await AI.sessionReview(transcript, conv.corrections))}</div>`; }
       catch (err) { $('#aiReview', box).innerHTML = `<p class="err">${esc(err.message)}</p>`; e.target.disabled = false; }
     };
@@ -483,61 +498,66 @@
   }
 
   // =====================================================================
-  // PALABRAS : révision espacée, synonymes, thèmes
+  // WORDS : révision espacée, synonymes, thèmes
   // =====================================================================
   function buildVocabQueue() {
-    const today = Store.today(), d = Store.day(), themes = activeThemes();
+    const today = Store.today(), themes = activeThemes();
     const due = [], fresh = [];
     for (const w of allWords()) {
       const c = Store.card(w.id);
       if (c && c.box > 0) { if (c.due <= today) due.push(w); }
       else if (themes.includes(w.theme) || extraThemes[w.theme]) fresh.push(w);
     }
-    // Les thèmes où tu oublies le plus passent en premier dans les révisions
+    // Les thèmes où tu oublies le plus passent en premier
     const st = Store.themeStats(allWords());
     const weight = w => { const s = st[w.theme]; return s && s.seen ? s.lapses / s.seen : 0; };
     due.sort((a, b) => weight(b) - weight(a) || Math.random() - .5);
     const prio = w => extraThemes[w.theme] ? 0 : VOCAB.THEMES[w.theme].prio;
     fresh.sort((a, b) => prio(a) - prio(b));
-    // Nouveaux mots : on alterne les thèmes pour mélanger courant, soutenu et technique
+    // Nouveaux mots : on alterne les thèmes de même priorité
     const byTheme = {};
     fresh.forEach(w => (byTheme[w.theme] = byTheme[w.theme] || []).push(w));
     const mixed = []; let added = true;
     while (added) { added = false; for (const k of Object.keys(byTheme)) { const w = byTheme[k].shift(); if (w) { mixed.push(w); added = true; } } }
+    mixed.sort((a, b) => prio(a) - prio(b));
     const newLeft = Math.max(0, S().newPerDay - (Store.dayAgg().newCards || 0));
     return [...due.slice(0, 50), ...mixed.slice(0, newLeft)];
   }
 
-  const vocabTabs = active => `<div class="tabs">${[['', 'Repaso', 'Révision'], ['sinonimos', 'Sinónimos', ''], ['temas', 'Temas', '']].map(([k, es]) => `<a class="${k === active ? 'active' : ''}" href="#palabras${k ? '/' + k : ''}">${es}</a>`).join('')}</div>`;
+  const vocabTabs = active => `<div class="tabs">${[['', T.review], ['synonyms', T.synonyms], ['themes', T.themes]].map(([k, lbl]) => `<a class="${k === active ? 'active' : ''}" href="#words${k ? '/' + k : ''}">${esc(lbl)}</a>`).join('')}</div>`;
 
-  routes.palabras = (tab) => {
+  routes.words = (tab) => {
     area = 'vocab';
-    if (tab === 'temas') return vocabThemes();
-    if (tab === 'sinonimos') return synonymTrainer();
+    if (tab === 'themes' || tab === 'temas') return vocabThemes();
+    if (tab === 'synonyms' || tab === 'sinonimos') return synonymTrainer();
     let queue = buildVocabQueue();
     const total = queue.length;
     const retry = new Set(), firstTry = {};
     let cur = null, answered = false, prevCard = null;
-    view.innerHTML = head('Vocabulaire', 'Palabras', 'Révision espacée : chaque mot revient juste avant que tu l’oublies. Dis la réponse à voix haute, c’est ce qui l’ancre.') + vocabTabs('') + '<div class="trainer" id="flash"></div>';
+    view.innerHTML = head('Vocabulaire', esc(N.words), 'Révision espacée : chaque mot revient juste avant que tu l’oublies. Dis la réponse à voix haute, c’est ce qui l’ancre.') + vocabTabs('') + '<div class="trainer" id="flash"></div>';
     const box = $('#flash');
     function next() {
       if (currentListener) currentListener.stop();
       cur = queue.shift(); answered = false;
       if (!cur) {
-        box.innerHTML = `<div class="done-box"><span class="eyebrow">Terminé</span><h2>Révisions du jour bouclées</h2><p class="muted" style="margin-top:12px">Tu peux entraîner les <a class="link" href="#palabras/sinonimos">synonymes</a>, activer d’autres <a class="link" href="#palabras/temas">thèmes</a> ou passer aux <a class="link" href="#verbos">verbes</a>.</p></div>`;
+        box.innerHTML = `<div class="done-box"><span class="eyebrow">Terminé</span><h2>Révisions du jour bouclées</h2><p class="muted" style="margin-top:12px">Tu peux entraîner les <a class="link" href="#words/synonyms">synonymes</a>, activer d’autres <a class="link" href="#words/themes">thèmes</a> ou passer aux <a class="link" href="#verbs">verbes</a>.</p></div>`;
         return;
       }
       const isNew = !Store.card(cur.id) || Store.card(cur.id).box === 0;
       const doneN = total - queue.length - 1;
+      // Pour un débutant, un mot nouveau est d'abord montré et entendu avant d'être demandé
+      const showFirst = isNew && L.introduceNewWords;
       box.innerHTML = `
         <div class="meta"><span>${esc(themeLabel(cur.theme))}</span><div class="meter"><i style="width:${Math.min(100, doneN / Math.max(1, total) * 100)}%"></i></div><span>${isNew ? '<span class="tag new">Nouveau</span>' : `${queue.length} restant${queue.length > 1 ? 's' : ''}`}</span></div>
-        <span class="eyebrow">En espagnol</span>
+        <span class="eyebrow">${esc(T.inLang)}</span>
         <div class="prompt">${esc(cur.fr)}</div>
-        <div class="prompt-sub">&nbsp;</div>
+        <div class="prompt-sub">${showFirst ? `<button class="link" id="vPeek">Écouter le mot avant de répondre</button>` : '&nbsp;'}</div>
         <div class="answer-row"><button class="mic" id="vMic"></button><input id="vIn" autocomplete="off" placeholder="Dis-le ou écris-le"><button class="btn" id="vCheck">Vérifier</button></div>
         <div class="row"><button class="link small" id="vSkip">Je ne sais pas</button></div>
         <div id="vRes"></div>`;
       const inp = $('#vIn'); inp.focus();
+      const peek = $('#vPeek');
+      if (peek) peek.onclick = () => { peek.parentElement.innerHTML = `<b>${esc(cur.tl)}</b> ${sayBtn(speakable(cur.tl))} <span class="muted">· répète-le, puis réponds</span>`; Speech.speak(speakable(cur.tl)); };
       micFor($('#vMic'), inp, { onDone: () => check(), autoSend: true });
       $('#vCheck').onclick = () => check();
       $('#vSkip').onclick = () => { inp.value = ''; check(true); };
@@ -546,7 +566,7 @@
     function check(skip) {
       if (answered) return next();
       answered = true;
-      const res = skip ? 'wrong' : compare($('#vIn').value, [cur.es, ...cur.syn], { loose: true });
+      const res = skip ? 'wrong' : compare($('#vIn').value, [cur.tl, ...cur.syn], { loose: true });
       const ok = res !== 'wrong';
       if (!(cur.id in firstTry)) {
         firstTry[cur.id] = ok;
@@ -559,11 +579,12 @@
       if (!ok && !retry.has(cur.id)) { retry.add(cur.id); queue.push(cur); }
       const label = { ok: 'Correct', accents: 'Correct, attention aux accents', typo: 'Presque : petite faute de frappe', wrong: skip ? 'La réponse' : 'Pas tout à fait' }[res];
       $('#vRes').innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${label}</span>
-        <div class="solution">${esc(cur.es)} ${sayBtn(speakable(cur.es))}</div>
+        <div class="solution">${esc(cur.tl)} ${sayBtn(speakable(cur.tl))}</div>
+        ${cur.note ? `<div class="syn">${esc(cur.note)}</div>` : ''}
         ${cur.syn.length ? `<div class="syn">Pour varier : ${cur.syn.map(s => `<b>${esc(s)}</b>`).join(', ')}</div>` : ''}
         ${!ok ? '<p class="muted small" style="margin-top:10px">Répète la réponse deux fois à voix haute avant de continuer.</p>' : ''}
         <div class="row">${!ok && !skip ? '<button class="btn quiet small" id="vOverride">J’avais bon</button>' : ''}<button class="btn" id="vNext">Suivant ${icon('arrow')}</button></div></div>`;
-      Speech.speak(speakable(cur.es));
+      Speech.speak(speakable(cur.tl));
       $('#vNext').onclick = next;
       const ov = $('#vOverride');
       if (ov) ov.onclick = () => {
@@ -577,14 +598,14 @@
     next();
   };
 
-  // Synonymes : enrichir son expression, du courant au soutenu
+  // Synonymes : enrichir son expression
   function synonymTrainer() {
     const themes = activeThemes();
-    const candidates = allWords().filter(w => w.syn.length && (themes.includes(w.theme) || Store.card(w.id)) && !/\.\.\.|\?/.test(w.es));
+    const candidates = allWords().filter(w => w.syn.length && (themes.includes(w.theme) || Store.card(w.id)) && !/\.\.\.|\?/.test(w.tl));
     const seen = candidates.filter(w => Store.card(w.id) && Store.card(w.id).box > 0);
     let items = shuffle([...shuffle(seen).slice(0, 8), ...shuffle(candidates)]).filter((w, i, a) => a.indexOf(w) === i).slice(0, 12);
     let i = 0, score = 0, answered = false;
-    view.innerHTML = head('Vocabulaire', 'Palabras', 'Trouve un autre mot pour dire la même chose. C’est ce qui te sauvera quand un mot ne vient pas.') + vocabTabs('sinonimos') + '<div class="trainer" id="syn"></div>';
+    view.innerHTML = head('Vocabulaire', esc(N.words), 'Trouve un autre mot pour dire la même chose. C’est ce qui te sauvera quand un mot ne vient pas.') + vocabTabs('synonyms') + '<div class="trainer" id="syn"></div>';
     const box = $('#syn');
     function show() {
       if (currentListener) currentListener.stop();
@@ -597,7 +618,7 @@
       const w = items[i];
       box.innerHTML = `<div class="meta"><span>${esc(themeLabel(w.theme))}</span><div class="meter"><i style="width:${i / items.length * 100}%"></i></div><span>${i + 1} / ${items.length}</span></div>
         <span class="eyebrow">Un synonyme ou équivalent de</span>
-        <div class="prompt">${esc(w.es)}</div><div class="prompt-sub">${esc(w.fr)}</div>
+        <div class="prompt">${esc(w.tl)}</div><div class="prompt-sub">${esc(w.fr)}</div>
         <div class="answer-row"><button class="mic" id="sMic"></button><input id="sIn" autocomplete="off" placeholder="Un autre mot"><button class="btn" id="sCheck">Vérifier</button></div>
         <div class="row"><button class="link small" id="sSkip">Je ne sais pas</button></div><div id="sRes"></div>`;
       const inp = $('#sIn'); inp.focus();
@@ -610,7 +631,7 @@
       if (answered) return;
       answered = true;
       const w = items[i], val = $('#sIn').value;
-      const same = compare(val, [w.es]) !== 'wrong';
+      const same = compare(val, [w.tl]) !== 'wrong';
       const ok = !same && compare(val, w.syn, { loose: true }) !== 'wrong';
       if (ok) score++;
       Store.recordTopic('vocabulario', ok, 0.03);
@@ -627,7 +648,7 @@
     const themes = activeThemes(), all = allWords();
     const st = Store.themeStats(all);
     const groups = [...Object.values(VOCAB.THEMES).sort((a, b) => a.prio - b.prio).map(t => t.id), ...Object.keys(extraThemes)];
-    view.innerHTML = head('Vocabulaire', 'Palabras', 'Coche les thèmes dont les nouveaux mots entrent dans tes révisions. Les thèmes marqués « Cours » viennent des supports de ton professeur.') + vocabTabs('temas') + `
+    view.innerHTML = head('Vocabulaire', esc(N.words), `Coche les thèmes dont les nouveaux mots entrent dans tes révisions.${L.courseThemesNote ? ' ' + L.courseThemesNote : ''}`) + vocabTabs('themes') + `
       <div>${groups.map(id => {
       const words = all.filter(w => w.theme === id); if (!words.length) return '';
       const s = st[id] || { learned: 0, total: words.length }, t = VOCAB.THEMES[id];
@@ -635,7 +656,7 @@
           ${t ? `<input type="checkbox" data-theme="${id}" ${themes.includes(id) ? 'checked' : ''} title="Inclure dans les révisions">` : ''}
           <span class="name">${esc(themeLabel(id))} ${t && t.course ? '<span class="tag">Cours</span>' : ''}</span>
           <span class="muted small">${s.learned} / ${words.length}</span><span class="meter high"><i style="width:${s.learned / words.length * 100}%"></i></span></summary>
-          <table class="words">${words.map(w => `<tr><td>${sayBtn(speakable(w.es))} <b>${esc(w.es)}</b></td><td>${esc(w.fr)}</td><td class="muted">${esc(w.syn.join(', '))}</td></tr>`).join('')}</table></details>`;
+          <table class="words">${words.map(w => `<tr><td>${sayBtn(speakable(w.tl))} <b>${esc(w.tl)}</b></td><td>${esc(w.fr)}</td><td class="muted">${esc(w.syn.join(', '))}</td></tr>`).join('')}</table></details>`;
     }).join('')}</div>`;
     $$('[data-theme]').forEach(cb => {
       cb.onclick = e => e.stopPropagation();
@@ -648,66 +669,31 @@
   }
 
   // =====================================================================
-  // VERBOS : entraîneur de conjugaison adaptatif
+  // VERBS : entraîneur adaptatif (les exercices viennent de Conj, propre à chaque langue)
   // =====================================================================
-  const SUBJ = [['yo'], ['tú'], ['él', 'ella', 'mi tutor', 'usted', 'Marta'], ['nosotros'], ['vosotros'], ['ellos', 'mis compañeros', 'ustedes']];
-  const PERSON_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 5];
-  const NO_IMP = ['ser', 'estar', 'poder', 'saber', 'querer', 'sentir', 'creer', 'oír', 'conocer', 'perder', 'recordar', 'entender', 'preferir', 'romper', 'llegar'];
-  const NO_GER = ['ser', 'estar', 'poder', 'saber', 'conocer', 'querer', 'preferir', 'entender', 'creer', 'perder', 'recordar', 'romper'];
-  const CONTEXT = {
-    indefinido: ['Ayer', 'Anoche', 'La semana pasada', 'El año pasado', 'En 2019', 'El otro día', 'Hace dos años'],
-    perfecto: ['Hoy', 'Esta mañana', 'Esta semana', 'Este año'],
-    imperfecto: ['Antes', 'De niño', 'Cuando era pequeño', 'Todos los veranos', 'De pequeño'],
-    futuro: ['Mañana', 'El año que viene', 'La semana que viene', 'Dentro de dos años', 'El próximo verano'],
-  };
-  const validVerbs = tense => Conj.VERBS.filter(v => !(tense === 'imperativo' && NO_IMP.includes(v.inf)) && !(tense === 'gerundio' && NO_GER.includes(v.inf)));
-
-  // Choix pondéré : les temps faibles et les verbes ratés reviennent plus souvent
   function pickWeighted(list, w) { const tot = list.reduce((a, x) => a + w(x), 0); let r = Math.random() * tot; for (const x of list) { r -= w(x); if (r <= 0) return x; } return list[list.length - 1]; }
   function makeConjItem(tenses) {
     const tense = pickWeighted(tenses, t => 0.25 + (1 - Store.conjTense(t).score) * 1.5);
-    const verbs = validVerbs(tense);
-    const trouble = Store.troubleVerbs().filter(inf => verbs.some(v => v.inf === inf));
-    const v = trouble.length && Math.random() < 0.4 ? Conj.BY_INF[pick(trouble)] : pick(verbs);
-    if (tense === 'imperativo') return { kind: 'bare', tense, verb: v.inf, p: 1, prompt: `${v.inf}`, sub: `Impératif, tú · « ${v.c} »`, a: [Conj.conjugate(v.inf, 'imperativo')] };
-    const p = pick(PERSON_WEIGHTS);
-    const subj = pick(SUBJ[p]);
-    const answer = Conj.conjugate(v.inf, tense, p);
-    if (CONTEXT[tense] && Math.random() < 0.5) {
-      // Mode contexte : le temps n'est pas donné, c'est le marqueur qui doit te le faire choisir
-      const marker = pick(CONTEXT[tense]);
-      const a = tense === 'futuro' ? [answer, Conj.conjugate(v.inf, 'ir_a', p)] : [answer];
-      return { kind: 'context', tense, verb: v.inf, p, prompt: `${marker}, ${subj} ___ ${v.c}.`, sub: `${v.inf} · ${v.fr}`, a };
-    }
-    return { kind: 'bare', tense, verb: v.inf, p, prompt: `${subj} · ${v.inf}`, sub: TENSE_NAME[tense], a: [answer] };
-  }
-  // Si la réponse correspond à un autre temps, on explique le contresens
-  function wrongTenseOf(item, val) {
-    if (item.kind !== 'context') return null;
-    for (const t of ['indefinido', 'perfecto', 'imperfecto', 'presente', 'futuro']) {
-      if (t === item.tense) continue;
-      if (compare(val, [Conj.conjugate(item.verb, t, item.p)], { pronoun: true }) !== 'wrong') return t;
-    }
-    return null;
+    return Conj.makeItem(tense, { pick, trouble: Store.troubleVerbs() });
   }
 
   let verbMode = null; // null = intelligent, sinon liste de temps
-  routes.verbos = () => {
+  routes.verbs = () => {
     area = 'gram';
-    const N = 12;
+    const NQ = 12;
     let items = [], i = 0, score = 0, answered = false, run = 0;
-    view.innerHTML = head('Conjugaison', 'Verbos', 'En mode intelligent, l’entraîneur insiste sur tes temps les plus faibles et te ressert les verbes que tu as ratés. Une question sur deux te donne seulement un repère temporel : à toi de choisir le bon temps.') + `
-      <div class="tabs"><a class="active" href="#verbos">Entraînement</a><a href="#gramatica/conjugador">Conjugueur</a></div>
+    view.innerHTML = head(esc(T.verbsEyebrow), esc(N.verbs), esc(T.verbsLead)) + `
+      <div class="tabs"><a class="active" href="#verbs">Entraînement</a><a href="#grammar/conjugator">${esc(T.conjugator)}</a></div>
       <div class="chips" id="vChips"></div>
       <div class="two-col"><div class="panel" id="vt"></div><div class="tense-side" id="vSide"></div></div>`;
-    const tensesNow = () => verbMode && verbMode.length ? verbMode : TRAIN_TENSES;
+    const tensesNow = () => verbMode && verbMode.length ? verbMode : Conj.TRAIN;
     function chips() {
-      $('#vChips').innerHTML = `<button class="chip ${!verbMode ? 'on' : ''}" data-t="smart">Intelligent</button>` + TRAIN_TENSES.map(t => `<button class="chip ${verbMode && verbMode.includes(t) ? 'on' : ''}" data-t="${t}">${TENSE_NAME[t]}</button>`).join('');
+      $('#vChips').innerHTML = `<button class="chip ${!verbMode ? 'on' : ''}" data-t="smart">Intelligent</button>` + Conj.TRAIN.map(t => `<button class="chip ${verbMode && verbMode.includes(t) ? 'on' : ''}" data-t="${t}">${esc(Conj.NAMES[t])}</button>`).join('');
     }
     function side() {
       const trouble = Store.troubleVerbs().slice(0, 8);
-      $('#vSide').innerHTML = `<div class="panel surface"><span class="eyebrow">Maîtrise par temps</span>${TRAIN_TENSES.map(t => { const x = Store.conjTense(t), p = pct(x.score); return `<div class="t" style="margin-top:12px"><span>${TENSE_NAME[t]}</span><span class="muted small" style="text-align:right">${x.n ? p + ' %' : '…'}</span><div class="meter ${x.n ? meterCls(p) : ''}"><i style="width:${x.n ? p : 0}%"></i></div></div>`; }).join('')}</div>
-        <div class="panel surface"><span class="eyebrow">Verbes à revoir</span>${trouble.length ? trouble.map(v => `<a class="tag weak" href="#gramatica/conjugador/${v}" style="text-decoration:none">${esc(v)}</a>`).join('') : '<p class="muted small">Aucun pour l’instant.</p>'}</div>`;
+      $('#vSide').innerHTML = `<div class="panel surface"><span class="eyebrow">Maîtrise</span>${Conj.TRAIN.map(t => { const x = Store.conjTense(t), p = pct(x.score); return `<div class="t" style="margin-top:12px"><span>${esc(Conj.NAMES[t])}</span><span class="muted small" style="text-align:right">${x.n ? p + ' %' : '…'}</span><div class="meter ${x.n ? meterCls(p) : ''}"><i style="width:${x.n ? p : 0}%"></i></div></div>`; }).join('')}</div>
+        <div class="panel surface"><span class="eyebrow">Verbes à revoir</span>${trouble.length ? trouble.map(v => `<a class="tag weak" href="#grammar/conjugator/${encodeURIComponent(v)}" style="text-decoration:none">${esc(v)}</a>`).join('') : '<p class="muted small">Aucun pour l’instant.</p>'}</div>`;
     }
     $('#vChips').onclick = e => {
       const b = e.target.closest('[data-t]'); if (!b) return;
@@ -716,7 +702,7 @@
       else { const set = new Set(verbMode || []); set.has(t) ? set.delete(t) : set.add(t); verbMode = set.size ? [...set] : null; }
       chips(); start();
     };
-    function start() { items = Array.from({ length: N }, () => makeConjItem(tensesNow())); i = 0; score = 0; show(); }
+    function start() { items = Array.from({ length: NQ }, () => makeConjItem(tensesNow())); i = 0; score = 0; show(); }
     function show() {
       if (currentListener) currentListener.stop();
       answered = false;
@@ -730,7 +716,7 @@
       const it = items[i];
       box.innerHTML = `<div class="trainer"><div class="meta"><span>${it.kind === 'context' ? 'Choisis le temps' : 'Conjugue'}</span><div class="meter"><i style="width:${i / items.length * 100}%"></i></div><span>${i + 1} / ${items.length}${run >= 3 ? ` · ${icon('flame')} ${run}` : ''}</span></div>
         <div class="prompt">${esc(it.prompt).replace('___', '<span class="blank">___</span>')}</div><div class="prompt-sub">${esc(it.sub)}</div>
-        <div class="answer-row"><button class="mic" id="cMic"></button><input id="cIn" autocomplete="off" placeholder="Forme conjuguée"><button class="btn" id="cCheck">Vérifier</button></div>
+        <div class="answer-row"><button class="mic" id="cMic"></button><input id="cIn" autocomplete="off" placeholder="${esc(it.placeholder || 'Forme conjuguée')}"><button class="btn" id="cCheck">Vérifier</button></div>
         <div id="cRes"></div></div>`;
       const inp = $('#cIn'); inp.focus();
       micFor($('#cMic'), inp, { onDone: () => check(), autoSend: true });
@@ -745,17 +731,18 @@
       const ok = res !== 'wrong';
       if (ok) { score++; run++; } else run = 0;
       Store.recordConj(it.tense, it.verb, ok);
-      Store.recordTopic(TENSE_TOPIC[it.tense], ok, 0.08);
-      const wrongT = !ok ? wrongTenseOf(it, val) : null;
-      if (it.kind === 'context') Store.recordTopic('contraste_pasados', ok || !wrongT, 0.06);
-      const forms = it.tense === 'imperativo' ? null : Conj.table(it.verb, it.tense);
-      const full = it.kind === 'context' ? it.prompt.replace('___', it.a[0]) : it.a[0];
+      if (Conj.TOPIC[it.tense]) Store.recordTopic(Conj.TOPIC[it.tense], ok, 0.08);
+      const wrongT = !ok && Conj.wrongTense ? Conj.wrongTense(it, v => compare(val, [v], { pronoun: true }) !== 'wrong') : null;
+      if (it.kind === 'context' && Conj.CONTEXT_TOPIC) Store.recordTopic(Conj.CONTEXT_TOPIC, ok || !wrongT, 0.06);
+      const table = Conj.itemTable ? Conj.itemTable(it) : null;
+      const full = it.full || (it.kind === 'context' ? it.prompt.replace('___', it.a[0]) : it.a[0]);
       $('#cRes').innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${ok ? (res === 'accents' ? 'Correct, attention aux accents' : 'Correct') : 'Réponse'}</span>
-        <div class="solution">${esc(full)} ${sayBtn(full)}</div>
-        ${it.kind === 'context' ? `<p class="small">Temps attendu : <b>${TENSE_NAME[it.tense]}</b>${it.a.length > 1 ? ` (ou <i>${esc(it.a[1])}</i>)` : ''}.${wrongT ? ` Tu as utilisé le ${TENSE_NAME[wrongT].toLowerCase()} : le repère temporel indique un autre temps.` : ''}</p>` : ''}
-        ${forms ? `<details ${ok ? '' : 'open'}><summary class="small">Conjugaison complète : ${esc(it.verb)}, ${TENSE_NAME[it.tense].toLowerCase()}</summary><table>${forms.map((f, k) => `<tr class="${k === it.p ? 'hl' : ''}"><td>${Conj.PERSONS[k]}</td><td>${esc(f)}</td></tr>`).join('')}</table></details>` : ''}
+        <div class="solution">${esc(full)} ${sayBtn(it.say || full)}</div>
+        ${it.kind === 'context' ? `<p class="small">Temps attendu : <b>${esc(Conj.NAMES[it.tense])}</b>${it.a.length > 1 ? ` (ou <i>${esc(it.a[1])}</i>)` : ''}.${wrongT ? ` Tu as utilisé : ${esc(Conj.NAMES[wrongT] || wrongT)}. Le repère temporel indique un autre temps.` : ''}</p>` : ''}
+        ${it.note ? `<p class="small">${esc(it.note)}</p>` : ''}
+        ${table ? `<details ${ok ? '' : 'open'}><summary class="small">${esc(table.title)}</summary><table>${table.rows.map(r => `<tr class="${r[2] ? 'hl' : ''}"><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('')}</table></details>` : ''}
         <div class="row"><button class="btn" id="cNext">Suivant ${icon('arrow')}</button></div></div>`;
-      if (!ok) Speech.speak(full);
+      if (!ok) Speech.speak(it.say || full);
       $('#cNext').onclick = () => { i++; show(); };
       $('#cNext').focus();
       side();
@@ -764,46 +751,87 @@
   };
 
   // =====================================================================
-  // GRAMÁTICA : fiches + exercices
+  // SOUNDS : écouter et répéter (prononciation)
   // =====================================================================
-  function genItem(topicId) {
-    const g = GRAMMAR.TOPICS[topicId].gen;
-    const tense = pick(g.tenses);
-    const v = pick(validVerbs(tense));
-    if (tense === 'imperativo') return { q: `___ ${v.c}, por favor.`, hint: `${v.inf} à l’impératif (tú)`, a: [Conj.conjugate(v.inf, 'imperativo')], verb: v.inf, tense };
-    const p = pick(PERSON_WEIGHTS);
-    const hint = tense === 'gerundio' ? `estar + gérondif de ${v.inf}` : tense === 'ir_a' ? `ir a + ${v.inf}` : `${v.inf}, ${Conj.TENSES[tense].label.toLowerCase()}`;
-    return { q: `${pick(g.markers)}, ${pick(SUBJ[p])} ___ ${v.c}.`, hint, a: [Conj.conjugate(v.inf, tense, p)], verb: v.inf, tense, p };
-  }
+  routes.sounds = (groupId) => {
+    if (!SOUNDS_ON) return go();
+    area = 'gram';
+    const group = SOUNDS.find(g => g.id === groupId);
+    if (!group) {
+      view.innerHTML = head('Prononciation', esc(N.sounds), esc(T.soundsLead)) + `
+        <div class="topic-grid">${SOUNDS.map(g => {
+        const s = Store.state.sounds && Store.state.sounds[g.id], p = s ? pct(s.ok / Math.max(1, s.n)) : 0;
+        return `<a class="topic" href="#sounds/${g.id}"><h3>${esc(g.label)}</h3><span class="muted small">${esc(g.fr)}</span>
+            <div class="meter ${s ? meterCls(p) : ''}"><i style="width:${p}%"></i></div><span class="stat">${s ? `${p} % · ${s.n} essais` : 'Pas encore pratiqué'}</span></a>`;
+      }).join('')}</div>`;
+      return;
+    }
+    let words = shuffle(group.words), i = 0;
+    view.innerHTML = backLink('#sounds', N.sounds) + head('Prononciation', esc(group.label), esc(group.fr)) + `
+      ${group.tip ? `<div class="notice">${esc(group.tip)}</div>` : ''}
+      <div class="trainer" id="snd"></div>`;
+    const box = $('#snd');
+    const st = () => { Store.state.sounds = Store.state.sounds || {}; return Store.state.sounds[group.id] || (Store.state.sounds[group.id] = { n: 0, ok: 0 }); };
+    function show() {
+      if (currentListener) currentListener.stop();
+      const w = words[i % words.length];
+      box.innerHTML = `<div class="meta"><span>Écoute puis répète</span><div class="meter"><i style="width:${(i % words.length) / words.length * 100}%"></i></div><span>${(i % words.length) + 1} / ${words.length}</span></div>
+        <div class="prompt">${esc(w.w)}</div><div class="prompt-sub">${esc(w.fr || '')}${w.ipa ? ` · <span class="muted">${esc(w.ipa)}</span>` : ''}</div>
+        <div class="row" style="justify-content:center"><button class="btn ghost" id="pListen">${icon('sound')} Écouter</button><button class="btn quiet" id="pSlow">0.6×</button></div>
+        <button class="mic big" id="pMic"></button>
+        <input id="pHeard" readonly placeholder="Ce que le micro a compris" style="text-align:center">
+        <div id="pRes"></div>`;
+      $('#pListen').onclick = () => Speech.speak(w.w);
+      $('#pSlow').onclick = () => Speech.speak(w.w, { rate: 0.6 });
+      Speech.speak(w.w);
+      micFor($('#pMic'), $('#pHeard'), { onDone: () => check(w), autoSend: true });
+    }
+    function check(w) {
+      const heard = $('#pHeard').value;
+      const res = compare(heard, [w.w], { loose: true });
+      const ok = res !== 'wrong';
+      const s = st(); s.n++; if (ok) s.ok++;
+      Store.recordTopic('pronunciacion', ok, 0.05);
+      $('#pRes').innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${ok ? 'Bien prononcé' : 'Pas encore reconnu'}</span>
+        <p class="small">${ok ? 'Le micro a reconnu le mot.' : `Le micro a compris « ${esc(heard || '…')} ». Réécoute en 0.6×, exagère le son, puis réessaie.`}</p>
+        <div class="row"><button class="btn quiet small" id="pAgain">Réessayer</button><button class="btn" id="pNext">Suivant ${icon('arrow')}</button></div></div>`;
+      $('#pAgain').onclick = show;
+      $('#pNext').onclick = () => { i++; show(); };
+    }
+    show();
+  };
+
+  // =====================================================================
+  // GRAMMAR : fiches + exercices
+  // =====================================================================
   function buildExercises(topicId, n = 10) {
     const t = GRAMMAR.TOPICS[topicId];
     const bank = shuffle(t.bank || []);
-    if (!t.gen) return bank.slice(0, n);
+    if (!t.gen || !Conj.genItem) return bank.slice(0, n);
     const items = bank.slice(0, Math.min(bank.length, Math.floor(n * 0.4)));
-    while (items.length < n) items.push(genItem(topicId));
+    while (items.length < n) items.push(Conj.genItem(t.gen, { pick }));
     return shuffle(items);
   }
 
-  routes.gramatica = (id, arg) => {
+  routes.grammar = (id, arg) => {
     area = 'gram';
-    const parts = location.hash.split('/');
-    if (id === 'conjugador') return conjugatorView(parts[2]);
+    if (id === 'conjugator' || id === 'conjugador') return conjugatorView(arg && decodeURIComponent(arg));
     if (id && GRAMMAR.TOPICS[id]) return topicView(id);
-    view.innerHTML = head('Grammaire', 'Gramática', 'Chaque barre reflète ta maîtrise estimée, mesurée sur tes exercices et sur les erreurs relevées en conversation. Les points les plus faibles remontent dans ta séance du jour.') + `
-      <div class="tabs"><a class="active" href="#gramatica">Points de grammaire</a><a href="#gramatica/conjugador">Conjugueur</a></div>
+    view.innerHTML = head('Grammaire', esc(N.grammar), 'Chaque barre reflète ta maîtrise estimée, mesurée sur tes exercices et sur les erreurs relevées en conversation. Les points les plus faibles remontent dans ta séance du jour.') + `
+      <div class="tabs"><a class="active" href="#grammar">Points de grammaire</a><a href="#grammar/conjugator">${esc(T.conjugator)}</a></div>
       <div class="topic-grid">${GRAMMAR.ORDER.map(id => {
       const t = Store.topic(id), p = pct(t.score);
-      return `<a class="topic" href="#gramatica/${id}"><div><span class="tag">${GRAMMAR.TOPICS[id].level}</span>${Store.state.weakSelf.includes(id) ? '<span class="tag weak">Point faible</span>' : ''}</div><h3>${esc(GRAMMAR.TOPICS[id].label)}</h3>
+      return `<a class="topic" href="#grammar/${id}"><div><span class="tag">${GRAMMAR.TOPICS[id].level}</span>${Store.state.weakSelf.includes(id) ? '<span class="tag weak">Point faible</span>' : ''}</div><h3>${esc(GRAMMAR.TOPICS[id].label)}</h3>
           <div class="meter ${t.n ? meterCls(p) : ''}"><i style="width:${t.n ? p : 0}%"></i></div><span class="stat">${t.n ? `${p} % · ${t.n} réponses` : 'Pas encore évalué'}</span></a>`;
     }).join('')}</div>
-      <p class="muted small" style="margin-top:28px">Pour approfondir : <a class="link" href="https://espanol.lingolia.com/fr/" target="_blank" rel="noopener">Lingolia</a> et <a class="link" href="https://www.espagnolfacile.com/" target="_blank" rel="noopener">Espagnol Facile</a>, recommandés par ton professeur.</p>`;
+      ${L.grammarLinks ? `<p class="muted small" style="margin-top:28px">${L.grammarLinks}</p>` : ''}`;
   };
 
   function topicView(id) {
     const t = GRAMMAR.TOPICS[id];
-    view.innerHTML = `<a href="#gramatica" class="link small" style="display:inline-flex;gap:6px;text-decoration:none;margin-bottom:18px">${icon('back')} Gramática</a>` + head(`Grammaire · ${t.level}`, esc(t.label)) + `
+    view.innerHTML = backLink('#grammar', N.grammar) + head(`Grammaire · ${t.level}`, esc(t.label)) + `
       <div class="two-col"><div class="panel fiche">${t.fiche}</div><div class="panel" id="ex"></div></div>
-      ${t.speak ? `<section class="section"><div class="section-head"><h2>A hablar</h2><span class="muted small">Une minute à voix haute pour chaque question</span></div>${t.speak.map(q => `<p style="font-size:1.1rem">${esc(q)} ${sayBtn(q)}</p>`).join('')}</section>` : ''}`;
+      ${t.speak ? `<section class="section"><div class="section-head"><h2>${esc(T.speakAloud)}</h2><span class="muted small">Une minute à voix haute pour chaque question</span></div>${t.speak.map(q => `<p style="font-size:1.1rem">${esc(q)} ${sayBtn(q)}</p>`).join('')}</section>` : ''}`;
     runExercises(id, $('#ex'));
   }
 
@@ -817,7 +845,7 @@
         const s = SCENARIOS.filter(x => x.targets.includes(id));
         box.innerHTML = `<div class="done-box trainer"><span class="eyebrow">Résultat</span><div class="score">${score}<span class="muted" style="font-size:1.4rem"> / ${items.length}</span></div>
           <p class="muted" style="margin-top:14px">${score >= 8 ? 'Très bien. Passe maintenant à l’oral pour l’utiliser en situation.' : score >= 5 ? 'C’est en bonne voie. Une série de plus pour consolider.' : 'Relis la fiche à gauche, puis recommence une série.'}</p>
-          <div class="row"><button class="btn" id="again">Nouvelle série</button><a class="btn ghost" href="#hablar/${s.length ? pick(s).id : 'libre'}">Pratiquer à l’oral</a></div></div>`;
+          <div class="row"><button class="btn" id="again">Nouvelle série</button>${s.length ? `<a class="btn ghost" href="#speak/${pick(s).id}">Pratiquer à l’oral</a>` : ''}</div></div>`;
         $('#again', box).onclick = () => { items = buildExercises(id); i = 0; score = 0; show(); };
         return;
       }
@@ -847,15 +875,14 @@
       if (it.verb) Store.recordConj(it.tense, it.verb, ok);
       if (btn) btn.classList.add(ok ? 'good' : 'bad');
       const shown = ok && res === 'ok' ? norm(val) === norm(it.a[0]) ? it.a[0] : val.trim() : it.a[0];
-      const full = it.q.includes('\n') ? it.q.split('\n').pop().replace('___', shown) : it.q.replace('___', shown);
-      let table = '';
-      if (it.verb && it.tense !== 'imperativo') {
-        table = `<details><summary class="small">Conjugaison complète : ${esc(it.verb)}</summary><table>${Conj.table(it.verb, it.tense).map((f, k) => `<tr class="${k === it.p ? 'hl' : ''}"><td>${Conj.PERSONS[k]}</td><td>${esc(f)}</td></tr>`).join('')}</table></details>`;
-      }
+      // Phrase complète : la question remplie, ou la réponse seule pour une question à choix sans trou
+      const full = !it.q.includes('___') ? shown : it.q.includes('\n') ? it.q.split('\n').pop().replace('___', shown) : it.q.replace('___', shown);
+      const table = it.verb && Conj.itemTable ? Conj.itemTable(it) : null;
       $('#gRes', box).innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${ok ? (res === 'accents' ? 'Correct, attention aux accents' : 'Correct') : 'Réponse'}</span>
-        <div class="solution" style="font-size:1.2rem">${esc(full)} ${/^Courant|→|Début|Fin|Je vous/.test(it.q) ? '' : sayBtn(full)}</div>
+        <div class="solution" style="font-size:1.2rem">${esc(full)} ${it.noSay || /→/.test(it.q) ? '' : sayBtn(full)}</div>
         ${it.a.length > 1 ? `<p class="small muted">Aussi accepté : ${it.a.filter(x => x !== shown).map(esc).join(', ')}</p>` : ''}
-        ${it.expl ? `<p class="small">${esc(it.expl)}</p>` : ''}${table}
+        ${it.expl ? `<p class="small">${esc(it.expl)}</p>` : ''}
+        ${table ? `<details><summary class="small">${esc(table.title)}</summary><table>${table.rows.map(r => `<tr class="${r[2] ? 'hl' : ''}"><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('')}</table></details>` : ''}
         <div class="row"><button class="btn" id="gNext">Suivant ${icon('arrow')}</button></div></div>`;
       $('#gNext', box).onclick = () => { i++; show(); };
       $('#gNext', box).focus();
@@ -864,43 +891,36 @@
   }
 
   function conjugatorView(initial) {
-    view.innerHTML = head('Grammaire', 'Conjugador', 'Toutes les formes vues en cours pour chaque verbe. Clique sur une forme pour l’entendre.') + `
-      <div class="tabs"><a href="#gramatica">Points de grammaire</a><a class="active" href="#gramatica/conjugador">Conjugueur</a></div>
-      <label class="field" style="max-width:420px"><span>Verbe</span><select id="cVerb">${Conj.VERBS.slice().sort((a, b) => a.inf.localeCompare(b.inf)).map(v => `<option value="${v.inf}" ${v.inf === initial ? 'selected' : ''}>${v.inf} · ${esc(v.fr)}</option>`).join('')}</select></label>
+    view.innerHTML = head('Grammaire', esc(T.conjugator), 'Toutes les formes utiles pour chaque verbe. Clique sur une forme pour l’entendre.') + `
+      <div class="tabs"><a href="#grammar">Points de grammaire</a><a class="active" href="#grammar/conjugator">${esc(T.conjugator)}</a></div>
+      <label class="field" style="max-width:420px"><span>Verbe</span><select id="cVerb">${Conj.VERBS.slice().sort((a, b) => a.inf.localeCompare(b.inf)).map(v => `<option value="${esc(v.inf)}" ${v.inf === initial ? 'selected' : ''}>${esc(v.inf)} · ${esc(v.fr)}</option>`).join('')}</select></label>
       <div id="cOut"></div>`;
     const render = () => {
       const inf = $('#cVerb').value;
-      $('#cOut').innerHTML = `<div class="stat-row"><div><span>Gérondif</span><b style="font-size:1.4rem">${Conj.gerundio(inf)}</b></div><div><span>Participe</span><b style="font-size:1.4rem">${Conj.participio(inf)}</b></div><div><span>Impératif (tú)</span><b style="font-size:1.4rem">${Conj.imperativoTu(inf)}</b></div><div><span>Futur proche</span><b style="font-size:1.4rem">voy a ${inf}</b></div></div>
-        <div class="conj-grid">${['presente', 'indefinido', 'imperfecto', 'perfecto', 'futuro'].map(t => `<table><tr><th colspan="2">${TENSE_NAME[t]}</th></tr>${Conj.table(inf, t).map((f, k) => `<tr><td class="muted">${Conj.PERSONS_SHORT[k]}</td><td><button class="link" style="text-decoration:none" data-say="${Conj.PERSONS_SHORT[k]} ${f}">${f}</button></td></tr>`).join('')}</table>`).join('')}</div>`;
+      const view = Conj.verbView(inf);
+      $('#cOut').innerHTML = `${view.extras.length ? `<div class="stat-row">${view.extras.map(([l, v]) => `<div><span>${esc(l)}</span><b style="font-size:1.3rem">${esc(v)}</b></div>`).join('')}</div>` : ''}
+        <div class="conj-grid">${view.tables.map(tb => `<table><tr><th colspan="2">${esc(tb.title)}</th></tr>${tb.rows.map(([p, f]) => `<tr><td class="muted">${esc(p)}</td><td><button class="link" style="text-decoration:none" data-say="${esc((p + ' ' + f).trim())}">${esc(f)}</button></td></tr>`).join('')}</table>`).join('')}</div>`;
     };
     $('#cVerb').onchange = render;
     render();
   }
 
   // =====================================================================
-  // LEER : lecture guidée générée par l'IA
+  // READ : lecture guidée générée par l'IA
   // =====================================================================
-  const READ_TOPICS = [
-    ['banca', 'Banque & IA', 'la inteligencia artificial en la banca (detección de fraude, riesgo de crédito, atención al cliente)'],
-    ['rag', 'RAG souverain', 'qué es un RAG soberano y por qué interesa a los bancos (confidencialidad, normativa, despliegue en local)'],
-    ['decision', 'Aide à la décision', 'la toma de decisiones con datos: optimización, análisis multicriterio, incertidumbre'],
-    ['tfe', 'Vie d’étudiant Erasmus', 'la vida de un estudiante Erasmus en Barcelona: universidad, piso, trámites, ocio'],
-    ['futbol', 'Barça', 'el FC Barcelona: historia, cultura culé, La Masia, el ambiente en el estadio'],
-    ['cultura', 'Culture espagnole', 'costumbres españolas: horarios, comidas, fiestas, Cataluña'],
-  ];
-  routes.leer = () => {
+  routes.read = () => {
     area = 'conv';
     const saved = Store.state.reading;
-    view.innerHTML = head('Lecture', 'Leer', 'Un texte écrit pour toi, à ton niveau, dans ton domaine. Écoute-le avec une voix native, survole les mots soulignés pour leur traduction, puis réponds aux questions à l’oral.') + `
-      <div class="panel surface"><span class="eyebrow">Sujet</span><div class="chips" id="rTopics">${READ_TOPICS.map(([k, l], j) => `<button class="chip ${j === 0 ? 'on' : ''}" data-k="${k}">${l}</button>`).join('')}</div>
-        <span class="eyebrow">Longueur</span><div class="chips" id="rLen">${[[120, 'Court'], [200, 'Moyen'], [320, 'Long']].map(([n, l], j) => `<button class="chip ${j === 1 ? 'on' : ''}" data-n="${n}">${l}</button>`).join('')}</div>
+    view.innerHTML = head('Lecture', esc(N.read), `Un texte écrit pour toi, à ton niveau, dans ton domaine. Écoute-le avec une voix native, survole les mots soulignés pour leur traduction, puis réponds aux questions à l’oral.`) + `
+      <div class="panel surface"><span class="eyebrow">Sujet</span><div class="chips" id="rTopics">${L.readTopics.map(([k, l], j) => `<button class="chip ${j === 0 ? 'on' : ''}" data-k="${k}">${esc(l)}</button>`).join('')}</div>
+        <span class="eyebrow">Longueur</span><div class="chips" id="rLen">${L.readLengths.map(([n, l], j) => `<button class="chip ${j === 1 ? 'on' : ''}" data-n="${n}">${l}</button>`).join('')}</div>
         <button class="btn" id="rGo" ${AI.hasKey() ? '' : 'disabled'}>Générer un texte (1 requête)</button>${AI.hasKey() ? '' : ' <span class="muted small">Nécessite une clé IA.</span>'}</div>
       <div id="rOut"></div>`;
     const sel = (id, attr) => $(`#${id} .chip.on`).dataset[attr];
     ['rTopics', 'rLen'].forEach(id => $('#' + id).onclick = e => { const b = e.target.closest('.chip'); if (!b) return; $$(`#${id} .chip`).forEach(c => c.classList.remove('on')); b.classList.add('on'); });
     $('#rGo').onclick = async () => {
       const k = sel('rTopics', 'k'), n = +sel('rLen', 'n');
-      const tp = READ_TOPICS.find(x => x[0] === k);
+      const tp = L.readTopics.find(x => x[0] === k);
       $('#rGo').disabled = true; $('#rOut').innerHTML = '<p class="thinking" style="margin-top:24px">Rédaction du texte…</p>';
       try {
         const r = await AI.reading(tp[2], n, reviewWords([k]));
@@ -916,8 +936,8 @@
     // Mise en évidence des mots du glossaire (une seule fois chacun)
     let html = esc(r.text);
     const marks = [];
-    (r.glossary || []).forEach((g, k) => {
-      const re = new RegExp('(^|[^\\p{L}])(' + esc(g.es).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![\\p{L}])', 'iu');
+    (r.glossary || []).forEach(g => {
+      const re = new RegExp('(^|[^\\p{L}])(' + esc(g.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![\\p{L}])', 'iu');
       html = html.replace(re, (m, pre, w) => { marks.push(`<span class="gl" data-fr="${esc(g.fr)}">${w}</span>`); return pre + '\u0001' + (marks.length - 1) + '\u0002'; });
     });
     html = html.replace(/\u0001(\d+)\u0002/g, (m, k) => marks[k]);
@@ -925,9 +945,10 @@
     $('#rOut').innerHTML = `<section class="section"><div class="section-head"><h2>${esc(r.title)}</h2><span class="muted small">${esc(r.topic || '')}</span></div>
       <div class="row" style="margin:0 0 20px"><button class="btn ghost small" id="rListen">${icon('sound')} Écouter</button><button class="btn quiet small" id="rSlow">0.8×</button><button class="btn quiet small" id="rStop">Stop</button></div>
       <div class="reading">${paras}</div>
-      <details style="margin-top:12px"><summary class="small">Glossaire (${(r.glossary || []).length})</summary><table>${(r.glossary || []).map(g => `<tr><td>${sayBtn(g.es)} <b>${esc(g.es)}</b></td><td>${esc(g.fr)}</td></tr>`).join('')}</table>
+      ${r.translation_fr ? `<details style="margin-top:12px"><summary class="small">Traduction</summary><div class="review">${esc(r.translation_fr)}</div></details>` : ''}
+      <details style="margin-top:12px"><summary class="small">Glossaire (${(r.glossary || []).length})</summary><table>${(r.glossary || []).map(g => `<tr><td>${sayBtn(g.word)} <b>${esc(g.word)}</b></td><td>${esc(g.fr)}</td></tr>`).join('')}</table>
         <button class="btn small quiet" id="rAdd">Ajouter ces mots à mes révisions</button></details></section>
-      <section class="section"><div class="section-head"><h2>Preguntas</h2><span class="muted small">Réponds à l’oral, en phrases complètes</span></div>
+      <section class="section"><div class="section-head"><h2>${esc(T.questions)}</h2><span class="muted small">Réponds à l’oral, en phrases complètes</span></div>
         ${(r.questions || []).map((q, k) => `<div class="q-block"><div class="q"><span class="muted">${k + 1}.</span><span>${esc(q)}</span>${sayBtn(q)}</div>
           <div class="answer-row"><button class="mic" data-mic="${k}"></button><textarea rows="2" data-ans="${k}" placeholder="Ta réponse">${esc((r.answers || [])[k] || '')}</textarea></div><div data-fb="${k}"></div></div>`).join('')}
         <div class="row"><button class="btn" id="rCheck">Corriger mes réponses (1 requête)</button></div></section>`;
@@ -937,13 +958,13 @@
     $('#rStop').onclick = () => Speech.stopSpeaking();
     $$('.gl').forEach(el => el.onclick = () => { el.classList.toggle('show'); Speech.speak(el.textContent); });
     $('#rAdd').onclick = e => {
-      let n = 0; (r.glossary || []).forEach(g => { if (Store.addCustom({ id: 'lect:' + norm(g.es), theme: 'lectures', es: g.es, fr: g.fr, syn: [] })) n++; });
+      let n = 0; (r.glossary || []).forEach(g => { if (Store.addCustom({ id: 'lect:' + norm(g.word), theme: 'lectures', tl: g.word, fr: g.fr, syn: [] })) n++; });
       e.target.textContent = `${n} mot${n > 1 ? 's' : ''} ajouté${n > 1 ? 's' : ''}`; e.target.disabled = true;
     };
     $$('[data-mic]').forEach(b => micFor(b, $(`[data-ans="${b.dataset.mic}"]`)));
     const showFb = fb => (fb.items || []).forEach((f, k) => {
       const el = $(`[data-fb="${k}"]`); if (!el) return;
-      el.innerHTML = `<div class="fix" style="margin-top:10px;border-color:${f.ok ? 'var(--good)' : 'var(--grana)'}"><b>${esc(f.better)}</b> ${sayBtn(f.better)}<span class="why">${esc(f.comment)}</span></div>`;
+      el.innerHTML = `<div class="fix" style="margin-top:10px;border-color:${f.ok ? 'var(--good)' : 'var(--accent)'}"><b>${esc(f.better)}</b> ${sayBtn(f.better)}<span class="why">${esc(f.comment)}</span></div>`;
     });
     if (r.feedback) showFb(r.feedback);
     $('#rCheck').onclick = async e => {
@@ -967,7 +988,7 @@
     const n = stripAccents(norm(q)); if (!n) return [];
     return allWords().map(w => {
       let sc = 0;
-      [w.fr, w.es, ...w.syn].map(x => stripAccents(norm(x))).forEach((f, k) => {
+      [w.fr, w.tl, ...w.syn].map(x => stripAccents(norm(x))).forEach((f, k) => {
         if (f === n) sc = Math.max(sc, 10 - k * 0.1); else if (f.split(/[ ,/']+/).includes(n)) sc = Math.max(sc, 6); else if (n.length > 2 && f.includes(n)) sc = Math.max(sc, 3);
       });
       return { w, sc };
@@ -975,41 +996,41 @@
   }
   function boueeUI(root) {
     root.innerHTML = `<span class="eyebrow">Bouée</span><h2>Un mot me manque</h2>
-      <p class="muted" style="margin-top:8px">Tape un mot en français, ou en espagnol pour trouver des synonymes.</p>
-      <div class="answer-row" style="margin-top:16px"><input id="bIn" placeholder="ex. : se débrouiller, taux d’intérêt, hors-jeu" autocomplete="off"><button class="btn" id="bGo">Chercher</button></div>
+      <p class="muted" style="margin-top:8px">Tape un mot en français, ou en ${L.langNameFr} pour trouver des synonymes.</p>
+      <div class="answer-row" style="margin-top:16px"><input id="bIn" placeholder="${esc(T.lookupPlaceholder)}" autocomplete="off"><button class="btn" id="bGo">Chercher</button></div>
       <div id="bOut"></div>
-      <div class="tip"><span class="eyebrow">En pleine conversation</span><i>Es una cosa que sirve para…</i> · <i>Es un sitio donde…</i> · <i>Es una persona que…</i> · <i>Es como… pero…</i> · <i>¿Cómo se dice « … » en español?</i></div>`;
-    const go = () => {
+      <div class="tip"><span class="eyebrow">En pleine conversation</span>${T.circumlocution.map(c => `<i>${esc(c)}</i>`).join(' · ')}</div>`;
+    const goSearch = () => {
       const q = $('#bIn', root).value.trim(); if (!q) return;
       const res = localLookup(q);
-      $('#bOut', root).innerHTML = `${res.length ? `<table style="margin-top:18px">${res.map(w => `<tr><td>${sayBtn(speakable(w.es))} <b>${esc(w.es)}</b></td><td>${esc(w.fr)}</td><td class="muted">${esc(w.syn.join(', '))}</td></tr>`).join('')}</table>` : '<p class="muted" style="margin-top:16px">Rien dans le dictionnaire de l’app.</p>'}
+      $('#bOut', root).innerHTML = `${res.length ? `<table style="margin-top:18px">${res.map(w => `<tr><td>${sayBtn(speakable(w.tl))} <b>${esc(w.tl)}</b></td><td>${esc(w.fr)}</td><td class="muted">${esc(w.syn.join(', '))}</td></tr>`).join('')}</table>` : '<p class="muted" style="margin-top:16px">Rien dans le dictionnaire de l’app.</p>'}
         ${AI.hasKey() ? '<button class="btn ghost small" id="bAI">Demander à l’IA</button><div id="bAIOut"></div>' : ''}`;
       const b = $('#bAI', root);
       if (b) b.onclick = async () => {
         b.disabled = true; $('#bAIOut', root).innerHTML = '<p class="thinking">Recherche…</p>';
         try {
           const r = await AI.lookup(q);
-          $('#bAIOut', root).innerHTML = `<div class="review" style="white-space:normal">${(r.results || []).map(x => `<div style="margin-bottom:6px">${sayBtn(x.es)} <b>${esc(x.es)}</b> ${esc(x.fr)} ${x.note ? `<span class="tag">${esc(x.note)}</span>` : ''}</div>`).join('')}
+          $('#bAIOut', root).innerHTML = `<div class="review" style="white-space:normal">${(r.results || []).map(x => `<div style="margin-bottom:6px">${sayBtn(x.word)} <b>${esc(x.word)}</b> ${esc(x.fr)} ${x.note ? `<span class="tag">${esc(x.note)}</span>` : ''}</div>`).join('')}
             ${r.synonyms && r.synonyms.length ? `<p style="margin-top:10px"><span class="eyebrow">Synonymes</span>${r.synonyms.map(esc).join(', ')}</p>` : ''}
             ${r.example ? `<p><span class="eyebrow">Exemple</span><i>${esc(r.example)}</i></p>` : ''}${r.circumlocution ? `<p><span class="eyebrow">Pour le décrire</span><i>${esc(r.circumlocution)}</i></p>` : ''}
             <button class="btn small" id="bAdd">Ajouter à mes révisions</button></div>`;
           $('#bAdd', root).onclick = (e) => {
-            (r.results || []).slice(0, 1).forEach(x => Store.addCustom({ id: 'conv:' + norm(x.es), theme: 'conversation', es: x.es, fr: x.fr, syn: r.synonyms || [] }));
+            (r.results || []).slice(0, 1).forEach(x => Store.addCustom({ id: 'conv:' + norm(x.word), theme: 'conversation', tl: x.word, fr: x.fr, syn: r.synonyms || [] }));
             e.target.textContent = 'Ajouté'; e.target.disabled = true;
           };
         } catch (e) { $('#bAIOut', root).innerHTML = `<p class="err">${esc(e.message)}</p>`; }
       };
     };
-    $('#bGo', root).onclick = go;
-    $('#bIn', root).onkeydown = e => { if (e.key === 'Enter') go(); };
+    $('#bGo', root).onclick = goSearch;
+    $('#bIn', root).onkeydown = e => { if (e.key === 'Enter') goSearch(); };
     $('#bIn', root).focus();
   }
   $('#fabBouee').onclick = () => { const box = modal('<div id="mb"></div>'); boueeUI($('#mb', box)); };
 
   // =====================================================================
-  // PROGRESO
+  // PROGRESS
   // =====================================================================
-  routes.progreso = () => {
+  routes.progress = () => {
     const days = Array.from({ length: 14 }, (_, k) => Store.today(k - 13));
     const goal = S().dailyMinutes;
     const max = Math.max(goal * 1.2, ...days.map(d => Store.totalMin(d)));
@@ -1020,21 +1041,21 @@
     const errs = Store.state.errors.slice(-30).reverse();
     const errCount = {};
     Store.state.errors.forEach(e => { errCount[e.topic] = (errCount[e.topic] || 0) + 1; });
-    view.innerHTML = head('Progrès', 'Progreso') + `
+    view.innerHTML = head('Progrès', esc(N.progress)) + `
       <div class="stat-row"><div><b>${streak()}</b><span>jours d’affilée</span></div><div><b>${Math.round(week)}</b><span>min cette semaine</span></div><div><b>${Math.round(micMin)}</b><span>min au micro</span></div><div><b>${learned}</b><span>mots acquis</span></div></div>
       <div class="panel"><span class="eyebrow">14 derniers jours</span>
         <div class="chart" style="margin-top:16px">${days.map(d => {
       const x = Store.dayAgg(d), v = Store.totalMin(d);
-      return `<div class="col" title="${d} : ${Math.round(v)} min"><div class="stack" style="height:${v / max * 100}%">${x ? ['vocab', 'gram', 'conv'].map(k => `<div class="seg ${k}" style="flex:${x.min[k]}"></div>`).join('') : ''}</div><span>${d.slice(8)}</span></div>`;
+      return `<div class="col" title="${d} : ${Math.round(v)} min"><div class="stack" style="height:${v / max * 100}%">${['vocab', 'gram', 'conv'].map(k => `<div class="seg ${k}" style="flex:${x.min[k]}"></div>`).join('')}</div><span>${d.slice(8)}</span></div>`;
     }).join('')}<div class="goal-line" style="bottom:${goal / max * 100}%"></div></div>
-        <div class="legend"><span><i class="seg vocab"></i>Vocabulaire</span><span><i class="seg gram"></i>Verbes et grammaire</span><span><i class="seg conv"></i>Oral et lecture</span><span>Pointillés : objectif</span></div></div>
+        <div class="legend"><span><i class="seg vocab"></i>Vocabulaire</span><span><i class="seg gram"></i>Verbes, grammaire${SOUNDS_ON ? ', prononciation' : ''}</span><span><i class="seg conv"></i>Oral et lecture</span><span>Pointillés : objectif</span></div></div>
       <div class="two-col" style="margin-top:20px">
         <div class="panel"><span class="eyebrow">Grammaire</span><p class="muted small">Coche les points où tu te sens faible : ils passent en priorité.</p>
           ${GRAMMAR.ORDER.map(id => { const t = Store.topic(id), p = pct(t.score); return `<label class="check" style="display:grid;grid-template-columns:auto 1fr 90px;gap:12px"><input type="checkbox" data-weak="${id}" ${Store.state.weakSelf.includes(id) ? 'checked' : ''}><span>${esc(topicLabel(id))}${errCount[id] ? ` <span class="muted small">· ${errCount[id]} erreur${errCount[id] > 1 ? 's' : ''} à l’oral</span>` : ''}</span><span class="meter ${t.n ? meterCls(p) : ''}"><i style="width:${t.n ? p : 0}%"></i></span></label>`; }).join('')}</div>
-        <div><div class="panel"><span class="eyebrow">Conjugaison</span>${TRAIN_TENSES.map(t => { const x = Store.conjTense(t), p = pct(x.score); return `<div style="display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:center;margin:10px 0"><span>${TENSE_NAME[t]}</span><span class="meter ${x.n ? meterCls(p) : ''}"><i style="width:${x.n ? p : 0}%"></i></span></div>`; }).join('')}</div>
+        <div><div class="panel"><span class="eyebrow">${esc(T.verbsEyebrow)}</span>${Conj.TRAIN.map(t => { const x = Store.conjTense(t), p = pct(x.score); return `<div style="display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:center;margin:10px 0"><span>${esc(Conj.NAMES[t])}</span><span class="meter ${x.n ? meterCls(p) : ''}"><i style="width:${x.n ? p : 0}%"></i></span></div>`; }).join('')}</div>
           <div class="panel"><span class="eyebrow">Dernières erreurs à l’oral</span>${errs.length ? errs.map(c => `<div class="fix"><s>${esc(c.original)}</s> <b>${esc(c.corrected)}</b><span class="why">${esc(topicLabel(c.topic))}</span></div>`).join('') : '<p class="muted">Rien pour l’instant.</p>'}</div></div>
       </div>
-      <div class="panel" style="margin-top:20px"><span class="eyebrow">Sauvegarde</span><p class="muted small">Tes progrès sont stockés dans ce navigateur et copiés automatiquement dans le dossier data. Tu peux aussi les exporter pour un autre appareil.</p>
+      <div class="panel" style="margin-top:20px"><span class="eyebrow">Sauvegarde</span><p class="muted small">Tes progrès sont stockés dans ce navigateur${Sync.enabled() ? ' et synchronisés avec ton dépôt privé' : ''}. Tu peux aussi les exporter.</p>
         <div class="row"><button class="btn ghost small" id="exp">Exporter</button><label class="btn ghost small">Importer<input type="file" id="imp" accept=".json" hidden></label></div></div>`;
     $$('[data-weak]').forEach(cb => cb.onchange = () => {
       const set = new Set(Store.state.weakSelf), id = cb.dataset.weak;
@@ -1044,7 +1065,7 @@
     $('#exp').onclick = () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([Store.exportData()], { type: 'application/json' }));
-      a.download = `espagnol-progres-${Store.today()}.json`; a.click();
+      a.download = `${L.id}-progres-${Store.today()}.json`; a.click();
     };
     $('#imp').onchange = async e => {
       const f = e.target.files[0]; if (!f) return;
@@ -1053,25 +1074,26 @@
   };
 
   // =====================================================================
-  // AJUSTES
+  // SETTINGS
   // =====================================================================
-  routes.ajustes = () => {
+  routes.settings = () => {
     const s = S();
     Speech.loadVoices();
     const vs = Speech.status();
+    const V = L.voice;
     const voiceOpts = () => {
-      const es = Speech.voices.filter(Speech.isSpain), other = Speech.voices.filter(v => !Speech.isSpain(v));
+      const main = Speech.voices.filter(Speech.isPreferred), other = Speech.voices.filter(v => !Speech.isPreferred(v));
       const opt = v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === s.ttsVoice ? 'selected' : ''}>${esc(v.name)}</option>`;
-      return (es.length ? `<optgroup label="Espagne (recommandé)">${es.map(opt).join('')}</optgroup>` : '') + (other.length ? `<optgroup label="Amérique latine">${other.map(opt).join('')}</optgroup>` : '') || '<option>Aucune voix espagnole</option>';
+      return (main.length ? `<optgroup label="${esc(V.preferLabel)}">${main.map(opt).join('')}</optgroup>` : '') + (other.length ? `<optgroup label="${esc(V.otherLabel)}">${other.map(opt).join('')}</optgroup>` : '') || `<option>Aucune voix native trouvée</option>`;
     };
-    view.innerHTML = head('Réglages', 'Ajustes') + `
+    view.innerHTML = head('Réglages', esc(N.settings)) + `
       <div class="panel"><span class="eyebrow">Intelligence artificielle</span><h3 style="margin-bottom:18px">Conversation, lecture et bouée</h3>
         <label class="field"><span>Fournisseur</span><select id="provider"><option value="gemini">Google Gemini, gratuit (recommandé)</option><option value="openai">Compatible OpenAI : Groq, OpenRouter…</option></select></label>
         <div id="pGemini">
-          <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Ouvre <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec ton compte Google.</li><li>Clique sur « Create API key » et copie la clé.</li><li>Colle-la ci-dessous. Elle reste dans ce navigateur et n’est jamais écrite dans les fichiers de sauvegarde.</li></ol>
+          <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Ouvre <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec ton compte Google.</li><li>Clique sur « Create API key » et copie la clé.</li><li>Colle-la ci-dessous. Elle reste dans ce navigateur, est partagée avec tes autres apps de langues et n’est jamais écrite dans les sauvegardes.</li></ol>
           <label class="field"><span>Clé API Gemini</span><input id="gKey" type="password" value="${esc(s.geminiKey)}" placeholder="AIza…"></label>
           <label class="field"><span>Modèle</span><div style="display:flex;gap:10px"><select id="gModel"><option value="${esc(s.geminiModel)}">${esc(s.geminiModel)}</option></select><button class="btn quiet small" id="gList">Charger la liste</button></div></label>
-          <p class="muted small">« gemini-flash-latest » suit le dernier modèle Flash gratuit. Si le quota est atteint, l’app passe automatiquement sur un modèle plus léger.</p>
+          <p class="muted small">« gemini-flash-latest » suit le dernier modèle Flash gratuit. Si le quota est atteint, l’app passe automatiquement sur un modèle plus léger. Le quota est commun à tes trois apps.</p>
         </div>
         <div id="pOA">
           <p class="small">Groq propose aussi un quota gratuit (<a class="link" href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>) : un bon plan B quand Gemini est épuisé.</p>
@@ -1081,9 +1103,10 @@
         </div>
         <div class="row"><button class="btn" id="test">Tester la connexion</button><span id="testOut" class="small"></span></div>
       </div>
-      <div class="panel"><span class="eyebrow">Voix</span><h3 style="margin-bottom:14px">Voix espagnole native</h3>
+      <div class="panel"><span class="eyebrow">Voix</span><h3 style="margin-bottom:14px">${esc(V.title)}</h3>
         <div class="notice ${vs.ok && !vs.warn ? 'done' : 'warn'}">${vs.ok && !vs.warn ? `Voix active : <b>${esc(vs.msg)}</b>` : esc(vs.msg)}</div>
-        <p class="muted small">L’app n’utilise que des voix espagnoles natives, jamais une voix française qui lirait de l’espagnol. Les plus naturelles sont les voix neuronales de <b>Microsoft Edge</b> (Elvira, Álvaro…), gratuites. Dans Chrome, choisis « Google español ».</p>
+        <p class="muted small">${V.help}</p>
+        ${V.variants ? `<label class="field"><span>Accent</span><select id="variant">${V.variants.map(([k, l]) => `<option value="${k}" ${s.voiceVariant === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''}
         <label class="field"><span>Voix par défaut</span><select id="voice">${voiceOpts()}</select></label>
         <label class="check"><input type="checkbox" id="byRole" ${s.voiceByRole ? 'checked' : ''}> Une voix d’homme ou de femme selon le personnage</label>
         <label class="field" style="margin-top:14px"><span>Vitesse : <b id="rateV">${s.ttsRate}</b></span><input id="rate" type="range" min="0.6" max="1.2" step="0.05" value="${s.ttsRate}"></label>
@@ -1093,49 +1116,51 @@
       </div>
       <div class="panel" id="syncPanel"><span class="eyebrow">Téléphone et synchronisation</span><h3 style="margin-bottom:14px">Même progression sur le PC et le téléphone</h3>
         <div class="notice" id="syncState"></div>
-        <details ${Sync.enabled() ? '' : 'open'}><summary class="small" style="margin-bottom:12px">Créer ton jeton GitHub (une seule fois, 2 minutes)</summary>
+        <details ${Sync.enabled() ? '' : 'open'}><summary class="small" style="margin-bottom:12px">Créer ton jeton GitHub (une seule fois pour les trois apps, 2 minutes)</summary>
           <ol class="small" style="padding-left:18px;color:var(--ink-2)">
             <li>Ouvre <a class="link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>.</li>
-            <li>Nom : <b>hablemos</b>. Expiration : <b>1 an</b> (ou plus).</li>
+            <li>Nom : <b>applangues</b>. Expiration : <b>1 an</b> (ou plus).</li>
             <li>Repository access : <b>Only select repositories</b>, puis choisis <b>hablemos-data</b>.</li>
             <li>Permissions, Repository permissions : <b>Contents</b> en <b>Read and write</b>. Rien d’autre.</li>
             <li>Clique sur <b>Generate token</b>, copie-le et colle-le ci-dessous.</li></ol>
-          <p class="muted small">Ce jeton ne donne accès qu’à ton dépôt privé de progression. Il reste dans ce navigateur.</p></details>
+          <p class="muted small">Ce jeton ne donne accès qu’à ton dépôt privé de progression. Il reste dans ce navigateur et sert aux trois apps.</p></details>
         <label class="field"><span>Jeton GitHub</span><input id="ghToken" type="password" value="${esc(Sync.cfg().token || '')}" placeholder="github_pat_…"></label>
-        <label class="field"><span>Dépôt de progression</span><input id="ghRepo" value="${esc(Sync.cfg().repo || 'RoyMusango/hablemos-data')}"></label>
+        <label class="field"><span>Dépôt de progression</span><input id="ghRepo" value="${esc(Sync.cfg().repo || L.dataRepo)}"></label>
         <div class="row"><button class="btn" id="syncGo">Synchroniser maintenant</button></div>
         <div id="phoneBox" style="margin-top:28px;border-top:1px solid var(--line);padding-top:24px"></div>
       </div>
       <div class="panel"><span class="eyebrow">Séance</span><h3 style="margin-bottom:18px">Rythme quotidien</h3>
-        <label class="field"><span>Durée visée par jour (minutes)</span><input id="dMin" type="number" min="10" max="120" value="${s.dailyMinutes}"></label>
-        <label class="field"><span>Budget de requêtes IA par jour</span><input id="dReq" type="number" min="20" max="5000" value="${s.dailyRequests}"></label>
-        <p class="muted small">Une minute de conversation coûte environ 2 à 3 requêtes. Trente minutes en consomment environ 80, ce qui reste dans le quota gratuit de Gemini Flash.</p>
+        <label class="field"><span>Durée visée par jour (minutes)</span><input id="dMin" type="number" min="5" max="120" value="${s.dailyMinutes}"></label>
+        <label class="field"><span>Budget de requêtes IA par jour (pour cette langue)</span><input id="dReq" type="number" min="20" max="5000" value="${s.dailyRequests}"></label>
+        <p class="muted small">Une minute de conversation coûte environ 2 à 3 requêtes. Le quota gratuit de Gemini est partagé entre tes trois apps.</p>
         <label class="field"><span>Nouveaux mots par jour</span><input id="nNew" type="number" min="0" max="50" value="${s.newPerDay}"></label>
-        <label class="field"><span>Niveau de l’IA</span><select id="level"><option>A1</option><option>A1-A2</option><option>A2</option><option>A2-B1</option><option>B1</option></select></label>
+        <label class="field"><span>Niveau de l’IA</span><select id="level">${L.levels.map(l => `<option>${l}</option>`).join('')}</select></label>
       </div>`;
     const set = (k, v) => { s[k] = v; if (Store.SHARED_PREFS.includes(k)) Store.touchPrefs(); else Store.save(); };
     $('#provider').value = s.provider; $('#level').value = s.level;
     const toggleP = () => { $('#pGemini').style.display = s.provider === 'gemini' ? '' : 'none'; $('#pOA').style.display = s.provider === 'gemini' ? 'none' : ''; };
     toggleP();
     $('#provider').onchange = e => { set('provider', e.target.value); toggleP(); };
-    $('#gKey').onchange = e => set('geminiKey', e.target.value.trim());
+    $('#gKey').onchange = e => { Store.setSharedKey('geminiKey', e.target.value.trim()); renderPhone(); };
     $('#gModel').onchange = e => set('geminiModel', e.target.value);
-    $('#oBase').onchange = e => set('oaBase', e.target.value.trim());
-    $('#oKey').onchange = e => set('oaKey', e.target.value.trim());
-    $('#oModel').onchange = e => set('oaModel', e.target.value.trim());
-    $('#dMin').onchange = e => set('dailyMinutes', Math.max(10, +e.target.value || 30));
+    $('#oBase').onchange = e => Store.setSharedKey('oaBase', e.target.value.trim());
+    $('#oKey').onchange = e => Store.setSharedKey('oaKey', e.target.value.trim());
+    $('#oModel').onchange = e => Store.setSharedKey('oaModel', e.target.value.trim());
+    $('#dMin').onchange = e => set('dailyMinutes', Math.max(5, +e.target.value || L.defaults.dailyMinutes));
     $('#dReq').onchange = e => set('dailyRequests', Math.max(20, +e.target.value || 300));
     $('#nNew').onchange = e => set('newPerDay', Math.max(0, +e.target.value || 0));
     $('#level').onchange = e => set('level', e.target.value);
     $('#voice').onchange = e => set('ttsVoice', e.target.value);
+    if ($('#variant')) $('#variant').onchange = e => { set('voiceVariant', e.target.value); set('ttsVoice', ''); Speech.loadVoices(); $('#voice').innerHTML = voiceOpts(); };
     $('#byRole').onchange = e => set('voiceByRole', e.target.checked);
     $('#rate').oninput = e => { set('ttsRate', +e.target.value); $('#rateV').textContent = e.target.value; };
     $('#autoSpeak').onchange = e => set('autoSpeak', e.target.checked);
     $('#hands').onchange = e => set('handsFree', e.target.checked);
-    $('#tF').onclick = () => Speech.speak('Hola, soy Montse, de la penya. ¿Desde cuándo eres del Barça?', { gender: 'f' });
-    $('#tM').onclick = () => Speech.speak('Buenos días. Cuénteme, ¿de qué trata exactamente su trabajo de fin de estudios?', { gender: 'm' });
+    $('#tF').onclick = () => Speech.speak(V.testF, { gender: 'f' });
+    $('#tM').onclick = () => Speech.speak(V.testM, { gender: 'm' });
     // Les voix du navigateur arrivent parfois après le premier rendu
-    window.addEventListener('voiceschanged-es', function once() { if ($('#voice')) $('#voice').innerHTML = voiceOpts(); else window.removeEventListener('voiceschanged-es', once); });
+    window.addEventListener('voiceschanged-app', function once() { if ($('#voice')) $('#voice').innerHTML = voiceOpts(); else window.removeEventListener('voiceschanged-app', once); });
+
     // --- Synchro ---
     const syncState = () => {
       const st = Sync.status, el = $('#syncState'); if (!el) return;
@@ -1161,18 +1186,19 @@
       let ntfy = null;
       if (Sync.enabled()) { try { ntfy = await Sync.readJson('ntfy.json'); } catch (e) { } }
       if (!$('#phoneBox')) return;
+      const others = (L.siblings || []).map(([n, u]) => `<a class="link" href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(', ');
       box.innerHTML = `<span class="eyebrow">Sur ton téléphone</span>
         <ol class="small" style="padding-left:18px;color:var(--ink-2)">
-          <li>Scanne ce QR code avec l’appareil photo : l’app s’ouvre déjà configurée (clé Gemini et synchro).</li>
+          <li>Scanne ce QR code avec l’appareil photo : l’app s’ouvre déjà configurée (clé Gemini et synchro, valables aussi pour tes autres apps de langues).</li>
           <li>Ajoute-la à l’écran d’accueil. Android (Chrome) : menu ⋮ puis « Ajouter à l’écran d’accueil ». iPhone (Safari) : bouton Partager puis « Sur l’écran d’accueil ».</li>
           <li>Autorise le micro au premier exercice oral.</li></ol>
         <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-top:12px"><div id="qr" style="background:#fff;padding:12px;line-height:0"></div>
           <div class="small" style="max-width:340px"><p>Ce QR code contient tes clés : ne le montre à personne.</p><button class="btn quiet small" id="copyLink">Copier le lien</button>
-          <p class="muted" style="margin-top:10px">Adresse de l’app : <a class="link" href="${PAGES_URL}" target="_blank" rel="noopener">${PAGES_URL.replace('https://', '')}</a></p></div></div>
+          <p class="muted" style="margin-top:10px">Adresse de l’app : <a class="link" href="${PAGES_URL}" target="_blank" rel="noopener">${PAGES_URL.replace('https://', '')}</a>${others ? `<br>Tes autres apps : ${others}` : ''}</p></div></div>
         ${ntfy && ntfy.topic ? `<div style="margin-top:24px"><span class="eyebrow">Rappels sur le téléphone</span>
           <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Installe l’app gratuite <b>ntfy</b> (Play Store ou App Store).</li>
           <li>Touche « + » puis abonne-toi au sujet <b style="user-select:all">${esc(ntfy.topic)}</b> (serveur ntfy.sh, celui par défaut).</li>
-          <li>Tu recevras un rappel toutes les 2 h entre 8 h et 22 h, tant que la séance du jour n’est pas faite.</li></ol></div>` : ''}`;
+          <li>Tu recevras un rappel toutes les 2 h entre 8 h et 20 h, tant qu’une séance du jour n’est pas faite.</li></ol></div>` : ''}`;
       try {
         await loadScript('js/vendor/qrcode.min.js');
         new QRCode($('#qr'), { text: link, width: 208, height: 208, correctLevel: QRCode.CorrectLevel.M });
@@ -1190,7 +1216,7 @@
     };
     $('#test').onclick = async () => {
       $('#testOut').textContent = '…';
-      try { const r = await AI.chat('Responde en una frase corta en español.', [{ role: 'user', content: 'Saluda a un estudiante belga, culé, que prepara su TFE sobre IA en la banca.' }]); $('#testOut').innerHTML = `${icon('check')} ${esc(r)}`; }
+      try { const r = await AI.chat(L.ai.testSystem, [{ role: 'user', content: L.ai.testUser }]); $('#testOut').innerHTML = `${icon('check')} ${esc(r)}`; }
       catch (e) { $('#testOut').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
     };
   };
