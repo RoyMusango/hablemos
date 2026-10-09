@@ -252,7 +252,8 @@
     if (CONTEXT[tense] && Math.random() < 0.5) {
       // Mode contexte : le temps n'est pas donné, c'est le repère temporel qui doit le faire choisir
       const a = tense === 'futuro' ? [answer, conjugate(v.inf, 'ir_a', p)] : [answer];
-      return { kind: 'context', tense, verb: v.inf, p, prompt: `${pick(CONTEXT[tense])}, ${subj} ___ ${v.c}.`, sub: `${v.inf} · ${v.fr}`, a };
+      const ctx = pick(CONTEXT[tense]);
+      return { kind: 'context', tense, verb: v.inf, p, prompt: `${ctx}, ${subj} (${v.inf}) ___ ${v.c}.`, sub: v.fr, a, full: `${ctx}, ${subj} ${a[0]} ${v.c}.` };
     }
     return { kind: 'bare', tense, verb: v.inf, p, prompt: `${subj} · ${v.inf}`, sub: NAMES[tense], a: [answer] };
   }
@@ -260,10 +261,10 @@
   function genItem(g, { pick }) {
     const tense = pick(g.tenses);
     const v = pick(validVerbs(tense));
-    if (tense === 'imperativo') return { q: `___ ${v.c}, por favor.`, hint: `${v.inf} à l’impératif (tú)`, a: [imperativoTu(v.inf)], verb: v.inf, tense };
+    if (tense === 'imperativo') return { q: `(${v.inf}) ___ ${v.c}, por favor.`, hint: `${v.inf} à l’impératif (tú)`, a: [imperativoTu(v.inf)], verb: v.inf, tense };
     const p = pick(PERSON_WEIGHTS);
     const hint = tense === 'gerundio' ? `estar + gérondif de ${v.inf}` : tense === 'ir_a' ? `ir a + ${v.inf}` : `${v.inf}, ${TENSES[tense].label.toLowerCase()}`;
-    return { q: `${pick(g.markers)}, ${pick(SUBJ[p])} ___ ${v.c}.`, hint, a: [conjugate(v.inf, tense, p)], verb: v.inf, tense, p };
+    return { q: `${pick(g.markers)}, ${pick(SUBJ[p])} (${v.inf}) ___ ${v.c}.`, hint, a: [conjugate(v.inf, tense, p)], verb: v.inf, tense, p };
   }
   // La réponse correspond-elle à un autre temps ? (pour expliquer le contresens)
   function wrongTense(item, matches) {
