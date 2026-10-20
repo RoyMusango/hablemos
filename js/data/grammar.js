@@ -52,6 +52,7 @@
 
   T.gustar = {
     label: 'Gustar & les goûts', level: 'A1',
+    hint: 'Pronom : me, te, le, nos, os, les',
     fiche: `
 <p><b>Gustar</b> fonctionne « à l'envers » : la chose aimée est le sujet.</p>
 <table><tr><td>(a mí)</td><td><b>me</b> gusta el cine / gusta<b>n</b> los perros</td></tr>
@@ -78,6 +79,7 @@
 
   T.interrogativos = {
     label: 'Les interrogatifs', level: 'A1',
+    hint: 'Mot interrogatif',
     fiche: `
 <p>Toujours avec <b>accent</b> et <b>¿ … ?</b></p>
 <ul><li><b>¿Qué?</b> quoi / quel (+ nom) : <i>¿Qué hora es?</i></li>
@@ -111,6 +113,7 @@
 
   T.preposiciones = {
     label: 'Les prépositions', level: 'A1',
+    hint: 'Préposition',
     fiche: `
 <ul><li><b>a</b> : direction, destination, COD de personne : <i>Voy <b>a</b> la universidad. Llamo <b>a</b> mi madre.</i> (a + el = <b>al</b>)</li>
 <li><b>de</b> : possession, origine, matière : <i>La casa <b>de</b> mi abuela. Soy <b>de</b> Bélgica.</i> (de + el = <b>del</b>)</li>
@@ -285,7 +288,7 @@ Irréguliers (même terminaisons) : tener → <b>tendr</b>é, poner → <b>pondr
       { q: '___ la puerta, hace frío. (cerrar)', a: ['cierra'] },
       { q: '___ una pizca de sal. (añadir)', a: ['añade'] },
       { q: 'Corta la cebolla → ___ (avec pronom)', a: ['córtala'] },
-      { q: 'Pon el huevo en el plato → ___ en el plato.', a: ['ponlo'] },
+      { q: 'Pon el huevo en el plato → ___ en el plato.', hint: 'Impératif (tú) + pronom collé : le huevo → lo', a: ['ponlo'] },
       { q: '___ a la derecha en el semáforo. (girar)', a: ['gira'] },
       { q: '___ recto hasta la plaza. (seguir)', a: ['sigue'] },
     ],
@@ -343,18 +346,18 @@ Irréguliers (même terminaisons) : tener → <b>tendr</b>é, poner → <b>pondr
       { q: 'Courant : « por eso » → soutenu : ___', a: ['por consiguiente', 'por lo tanto', 'en consecuencia'] },
       { q: 'Courant : « también » → soutenu : ___', a: ['asimismo', 'igualmente'] },
       { q: 'Courant : « porque » (en début de phrase) → soutenu : ___', a: ['dado que', 'puesto que', 'ya que'] },
-      { q: 'Hemos hecho un estudio → Hemos ___ un estudio.', a: ['llevado a cabo', 'realizado', 'efectuado'] },
-      { q: 'El autor dice que… → El autor ___ que…', a: ['señala', 'afirma', 'indica', 'sostiene'] },
-      { q: 'El modelo da buenos resultados → El modelo ___ buenos resultados.', a: ['proporciona', 'ofrece', 'aporta', 'obtiene'] },
-      { q: 'Hemos conseguido mejorar la precisión → Hemos ___ mejorar la precisión.', a: ['logrado'] },
-      { q: 'Tenemos tres conjuntos de datos → ___ de tres conjuntos de datos.', a: ['disponemos', 'contamos'] , expl: 'Disponer de / contar con + nom.' },
-      { q: 'En este capítulo hablo de los resultados → En este capítulo ___ los resultados.', a: ['abordo', 'trato', 'analizo', 'presento'] },
-      { q: '¿Puedes revisar mi borrador? (formel) → ¿___ usted revisar mi borrador?', a: ['podría'] },
-      { q: 'Je vous serais reconnaissant de me répondre → Le ___ que me respondiera.', a: ['agradecería'] },
-      { q: 'Sobre la metodología… (soutenu) → En ___ a la metodología…', a: ['cuanto', 'lo que respecta'] },
-      { q: 'Para mejorar el modelo (soutenu) → A ___ de mejorar el modelo', a: ['fin'] },
-      { q: 'Début d’un e-mail formel : « ___ profesor Martínez: »', a: ['estimado'] },
-      { q: 'Fin d’un e-mail formel : « Quedo a su ___. Un cordial saludo. »', a: ['disposición'] },
+      { q: 'Hemos hecho un estudio → Hemos ___ un estudio.', hint: 'Synonyme soutenu de « hecho » (participe passé)', a: ['llevado a cabo', 'realizado', 'efectuado'] },
+      { q: 'El autor dice que… → El autor ___ que…', hint: 'Synonyme soutenu de « dice » (présent, él)', a: ['señala', 'afirma', 'indica', 'sostiene'] },
+      { q: 'El modelo da buenos resultados → El modelo ___ buenos resultados.', hint: 'Synonyme soutenu de « da » (présent, él)', a: ['proporciona', 'ofrece', 'aporta', 'obtiene'] },
+      { q: 'Hemos conseguido mejorar la precisión → Hemos ___ mejorar la precisión.', hint: 'Synonyme soutenu de « conseguido » (participe passé)', a: ['logrado'] },
+      { q: 'Tenemos tres conjuntos de datos → ___ de tres conjuntos de datos.', hint: 'Synonyme soutenu de « tenemos » (présent, nosotros)', a: ['disponemos', 'contamos'] , expl: 'Disponer de / contar con + nom.' },
+      { q: 'En este capítulo hablo de los resultados → En este capítulo ___ los resultados.', hint: 'Synonyme soutenu de « hablo de » (présent, yo)', a: ['abordo', 'trato', 'analizo', 'presento'] },
+      { q: '¿Puedes revisar mi borrador? (formel) → ¿___ usted revisar mi borrador?', hint: 'poder au conditionnel de politesse (usted)', a: ['podría'] },
+      { q: 'Je vous serais reconnaissant de me répondre → Le ___ que me respondiera.', hint: 'agradecer au conditionnel (yo)', a: ['agradecería'] },
+      { q: 'Sobre la metodología… (soutenu) → En ___ a la metodología…', hint: 'Locution : « en ce qui concerne »', a: ['cuanto', 'lo que respecta'] },
+      { q: 'Para mejorar el modelo (soutenu) → A ___ de mejorar el modelo', hint: 'Locution : « afin de »', a: ['fin'] },
+      { q: 'Début d’un e-mail formel : « ___ profesor Martínez: »', hint: '« Cher » (adjectif, masculin)', a: ['estimado'] },
+      { q: 'Fin d’un e-mail formel : « Quedo a su ___. Un cordial saludo. »', hint: '« Je reste à votre … »', a: ['disposición'] },
     ],
     speak: ['Explica tu proyecto de TFE en registro formal, como si fuera ante un tribunal (1 minuto).', 'Deja un mensaje de voz formal a tu tutor para pedir una reunión.'],
   };
