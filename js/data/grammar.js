@@ -321,6 +321,7 @@ Irréguliers (même terminaisons) : tener → <b>tendr</b>é, poner → <b>pondr
 
   T.registro = {
     label: 'Registre soutenu', level: 'B1',
+    hint: 'Équivalent en registre soutenu',
     fiche: `
 <p>Avec un encadrant, un jury ou dans un e-mail, on monte d'un cran. Trois leviers simples :</p>
 <p><b>1. Usted</b> au lieu de tú (verbe à la 3e personne) : <i>¿<b>Podría</b> usted…? ¿<b>Le</b> parece bien…?</i> Le conditionnel adoucit : <i>quería</i> / <i>querría</i>, <i>podría</i>, <i>le agradecería</i>.</p>
