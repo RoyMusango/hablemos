@@ -3,7 +3,7 @@
 window.SOUNDS = [
   { id: 'r', label: 'R simple et RR roulé', fr: 'Le r espagnol se fait du bout de la langue, jamais au fond de la gorge.',
     tip: 'R simple : un seul battement de langue, comme le « d » rapide de « madame ». RR (et r en début de mot) : plusieurs battements.',
-    words: [{ w: 'pero', fr: 'mais' }, { w: 'perro', fr: 'chien' }, { w: 'caro', fr: 'cher' }, { w: 'carro', fr: 'chariot' }, { w: 'Barcelona' }, { w: 'rápido', fr: 'rapide' }, { w: 'restaurante' }, { w: 'tierra', fr: 'terre' }, { w: 'primero', fr: 'premier' }, { w: 'trabajar', fr: 'travailler' }] },
+    words: [{ w: 'pero', fr: 'mais' }, { w: 'perro', fr: 'chien' }, { w: 'caro', fr: 'cher' }, { w: 'carro', fr: 'chariot, charrette' }, { w: 'Barcelona' }, { w: 'rápido', fr: 'rapide' }, { w: 'restaurante' }, { w: 'tierra', fr: 'terre' }, { w: 'primero', fr: 'premier' }, { w: 'trabajar', fr: 'travailler' }] },
   { id: 'j', label: 'J et G devant e, i', fr: 'Un souffle rauque au fond de la gorge, comme le « ch » allemand de « Bach ».',
     words: [{ w: 'jamón', fr: 'jambon' }, { w: 'trabajo', fr: 'travail' }, { w: 'gente', fr: 'gens' }, { w: 'jugador', fr: 'joueur' }, { w: 'general' }, { w: 'jefe', fr: 'chef' }, { w: 'mujer', fr: 'femme' }, { w: 'viaje', fr: 'voyage' }] },
   { id: 'z', label: 'Z et C devant e, i', fr: 'En Espagne, la langue entre les dents, comme le « th » anglais de « think ».',
@@ -15,8 +15,8 @@ window.SOUNDS = [
   { id: 'nasal', label: 'Pas de voyelles nasales', fr: 'On prononce le n : « con » ne se dit pas « con » à la française mais « konn ».',
     words: [{ w: 'con', fr: 'avec' }, { w: 'tan', fr: 'si, tellement' }, { w: 'también', fr: 'aussi' }, { w: 'tiempo', fr: 'temps' }, { w: 'banco', fr: 'banque' }, { w: 'campo', fr: 'terrain' }, { w: 'importante' }, { w: 'un momento' }] },
   { id: 'll', label: 'LL, Y et Ñ', fr: 'LL et Y comme un « y » appuyé ; Ñ comme « gn » dans « montagne ».',
-    words: [{ w: 'llamar', fr: 'appeler' }, { w: 'calle', fr: 'rue' }, { w: 'yo', fr: 'je' }, { w: 'playa', fr: 'plage' }, { w: 'año', fr: 'année' }, { w: 'España' }, { w: 'mañana', fr: 'demain' }, { w: 'compañero', fr: 'collègue' }] },
+    words: [{ w: 'llamar', fr: 'appeler' }, { w: 'calle', fr: 'rue' }, { w: 'yo', fr: 'je' }, { w: 'playa', fr: 'plage' }, { w: 'año', fr: 'année' }, { w: 'España' }, { w: 'mañana', fr: 'demain' }, { w: 'compañero', fr: 'camarade, collègue' }] },
   { id: 'accent', label: 'L’accent tonique', fr: 'Une syllabe est plus forte que les autres. Se tromper change parfois le sens.',
     tip: 'Mot terminé par voyelle, n ou s : accent sur l’avant-dernière syllabe. Sinon sur la dernière. L’accent écrit indique les exceptions.',
-    words: [{ w: 'hablo', fr: 'je parle' }, { w: 'habló', fr: 'il a parlé' }, { w: 'trabajo', fr: 'je travaille' }, { w: 'trabajó', fr: 'il a travaillé' }, { w: 'práctica' }, { w: 'análisis' }, { w: 'algoritmo' }, { w: 'economía' }] },
+    words: [{ w: 'hablo', fr: 'je parle' }, { w: 'habló', fr: 'il parla, il a parlé' }, { w: 'trabajo', fr: 'je travaille' }, { w: 'trabajó', fr: 'il travailla, il a travaillé' }, { w: 'práctica' }, { w: 'análisis' }, { w: 'algoritmo' }, { w: 'economía' }] },
 ];

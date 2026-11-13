@@ -18,7 +18,7 @@ Es lo contrario de... | C'est le contraire de...
 Un momento, estoy pensando | Un moment, je réfléchis | Déjame pensar
 O sea... | C'est-à-dire... | Es decir
 Quiero decir que... | Je veux dire que...
-¿Me explico? | Je me fais comprendre ? | ¿Me entiendes?
+¿Me explico? | Je me fais bien comprendre ? | ¿Me entiendes?
 Perdona, me he equivocado | Pardon, je me suis trompé
 ¿Está bien dicho así? | C'est bien dit comme ça ? | ¿Se dice así?
 ` },
@@ -150,7 +150,7 @@ odiar | détester | no soportar
 esperar | attendre / espérer | aguardar
 intentar | essayer | tratar de; probar
 olvidar | oublier | olvidarse de
-recordar | se souvenir | acordarse de
+recordar | se souvenir de, rappeler | acordarse de
 dejar | laisser / prêter | prestar
 llevar | porter / emmener
 traer | apporter
@@ -229,7 +229,7 @@ ocupado | occupé | liado (fam.)
 libre | libre | disponible
 importante | important
 increíble | incroyable | impresionante
-raro | bizarre / rare | extraño
+raro | bizarre, étrange | extraño; curioso
 normal | normal | habitual
 caliente | chaud (objet)
 frío | froid
@@ -292,7 +292,7 @@ el árbitro | l'arbitre | el colegiado
 el gol | le but
 marcar un gol | marquer un but | meter un gol
 el golazo | le but magnifique
-empatar | faire match nul | quedar empate
+empatar | faire match nul | quedar en empate
 ganar | gagner | vencer
 perder | perdre
 el resultado | le score | el marcador
@@ -337,7 +337,7 @@ abordar | aborder, traiter | tratar; examinar
 lograr | parvenir à, obtenir | conseguir; alcanzar
 proporcionar | fournir | aportar; facilitar
 disponer de | disposer de | contar con; tener
-suponer | impliquer, représenter | implicar; conllevar
+suponer | supposer ; impliquer, représenter | implicar; conllevar
 conllevar | entraîner (conséquence) | implicar; acarrear
 destacar | se distinguer, mettre en avant | resaltar; sobresalir
 adecuado | approprié | apropiado; pertinente
@@ -429,7 +429,7 @@ el modelo predictivo | le modèle prédictif
 el pronóstico | la prévision | la predicción
 el cuadro de mando | le tableau de bord | el dashboard
 el indicador clave (KPI) | l'indicateur clé | el KPI
-el compromiso | le compromis | el equilibrio
+el compromiso | le compromis (trade-off) | el equilibrio; la solución de compromiso
 la sensibilidad | la sensibilité | el análisis de sensibilidad
 evaluar | évaluer | valorar
 priorizar | prioriser | jerarquizar
@@ -444,7 +444,7 @@ el sector bancario | le secteur bancaire | la banca
 la cuenta corriente | le compte courant
 el cliente | le client
 el préstamo | le prêt | el crédito
-la hipoteca | le prêt immobilier
+la hipoteca | le prêt hypothécaire | el préstamo hipotecario
 el tipo de interés | le taux d'intérêt
 la tasa | le taux | el tipo
 el depósito | le dépôt
@@ -535,7 +535,7 @@ los resultados muestran que... | les résultats montrent que... | los resultados
 en primer lugar | en premier lieu | primero
 a continuación | ensuite | después; seguidamente
 para concluir | pour conclure | en conclusión
-la limitación | la limite
+la limitación | la limite, la limitation
 el trabajo futuro | les perspectives | las líneas futuras
 la diapositiva | la diapositive | la transparencia
 la gráfica | le graphique | el gráfico
@@ -579,7 +579,7 @@ el flan | le flan
 la crema catalana | la crème catalane
 el café solo | le café noir | el expreso
 el café con leche | le café au lait
-el café cortado | café avec une goutte de lait
+el café cortado | le café noisette (avec un peu de lait) | el cortado
 el azúcar | le sucre
 la comida | le repas / le déjeuner | el almuerzo
 la cena | le dîner
@@ -597,7 +597,7 @@ el supermercado | le supermarché | el súper
 la panadería | la boulangerie
 la carnicería | la boucherie
 la pescadería | la poissonnerie
-la frutería | le magasin de fruits
+la frutería | le primeur (fruits et légumes)
 la charcutería | la charcuterie
 los lácteos | les produits laitiers
 la verdura | les légumes | las hortalizas
@@ -610,7 +610,7 @@ el yogur | le yaourt
 el huevo | l'œuf
 el jamón | le jambon
 el chorizo | le chorizo
-la ternera | le veau / bœuf
+la ternera | le veau, le bœuf (viande)
 el cerdo | le porc
 el cordero | l'agneau
 la carne picada | la viande hachée
@@ -676,7 +676,7 @@ la reserva | la réservation
 la habitación individual | la chambre simple
 la habitación doble | la chambre double
 la cama de matrimonio | le lit double
-el desayuno incluido | petit-déj inclus
+el desayuno incluido | petit-déjeuner compris
 la recepción | la réception
 el recepcionista | le réceptionniste
 la noche | la nuit
@@ -700,13 +700,13 @@ céntrico | central, bien situé | en el centro
     ciudad: { label: 'Ville & directions', course: true, prio: 2, words: `
 la calle | la rue
 la plaza | la place
-la esquina | le coin
+la esquina | le coin (de rue)
 el semáforo | le feu de circulation
 el cruce | le carrefour | la intersección
 la acera | le trottoir
 el museo | le musée
 el parque | le parc
-el ayuntamiento | la mairie
+el ayuntamiento | la mairie, l'hôtel de ville
 la iglesia | l'église
 la tienda | le magasin
 el banco | la banque / le banc
@@ -718,7 +718,7 @@ cruzar | traverser
 la primera calle | la première rue
 cerca de | près de | al lado de
 lejos de | loin de
-enfrente de | en face de | delante de
+enfrente de | en face de | frente a
 al lado de | à côté de | junto a
 detrás de | derrière
 delante de | devant
@@ -793,7 +793,7 @@ el pez | le poisson (vivant)
 el caballo | le cheval
 la vaca | la vache
 el toro | le taureau
-la oveja | le mouton
+la oveja | la brebis, le mouton
 la cabra | la chèvre
 el cerdo | le cochon
 la gallina | la poule
@@ -819,7 +819,7 @@ el brazo | le bras
 la pierna | la jambe
 el pie | le pied
 la espalda | le dos
-el estómago | l'estomac | la barriga; la tripa
+el estómago | l'estomac, le ventre | la barriga; la tripa
 me duele... | j'ai mal à... | tengo dolor de...
 estar enfermo | être malade
 estar resfriado | être enrhumé | tener un resfriado
@@ -840,7 +840,7 @@ los zapatos | les chaussures
 las zapatillas | les baskets / chaussons
 llevar puesto | porter (vêtement)
 la talla | la taille
-probarse | essayer
+probarse | essayer (un vêtement)
 ` },
     familia: { label: 'Famille & personnes', course: false, prio: 2, words: `
 la familia | la famille
@@ -869,12 +869,12 @@ en el centro | au centre | en medio
 arriba | en haut
 abajo | en bas
 parece que... | il semble que... | da la impresión de que...
-creo que están... | je crois qu'ils sont en train de... | supongo que
+creo que están... | je crois qu'ils sont... | supongo que están...
 el paisaje | le paysage
 la montaña | la montagne
 la playa | la plage
 el mar | la mer
-el río | la rivière
+el río | le fleuve, la rivière
 el árbol | l'arbre
 la hoja | la feuille
 el lago | le lac

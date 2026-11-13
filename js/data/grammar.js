@@ -88,7 +88,7 @@
 <li><b>¿Cuándo?</b> quand : <i>¿Cuándo es tu cumpleaños?</i></li>
 <li><b>¿Por qué?</b> pourquoi → réponse <b>porque</b> (parce que)</li>
 <li><b>¿Cómo?</b> comment : <i>¿Cómo te llamas?</i></li>
-<li><b>¿Cuánto/a/os/as?</b> combien : accord : <i>¿Cuántos libros? ¿Cuántas personas?</i></li>
+<li><b>¿Cuánto/a/os/as?</b> combien (s’accorde avec le nom) : <i>¿Cuántos libros? ¿Cuántas personas?</i></li>
 <li><b>¿Cuál? / ¿Cuáles?</b> lequel / quel (+ verbe) : <i>¿Cuál es tu color favorito?</i></li></ul>
 <p>Piège : <b>¿Qué</b> + nom (<i>¿Qué libro?</i>) mais <b>¿Cuál</b> + es (<i>¿Cuál es tu libro?</i>).</p>`,
     bank: [
@@ -134,7 +134,7 @@
       { q: 'Vamos ___ cine esta noche. (a + el)', a: ['al'] },
       { q: 'Vengo ___ supermercado. (de + el)', a: ['del'] },
       { q: 'El gato está ___ de la caja (dessous).', a: ['debajo'] },
-      { q: 'El banco está ___ de la farmacia (en face).', a: ['enfrente', 'delante'] },
+      { q: 'El banco está ___ de la farmacia (en face).', a: ['enfrente'], expl: '« Delante de » veut dire « devant » ; « en face de » se dit « enfrente de ».' },
       { q: 'La fuente está ___ el parque y la iglesia.', a: ['entre'] },
       { q: 'Llamo ___ mi madre todos los domingos.', a: ['a'], expl: 'COD de personne → « a » personnel.' },
       { q: 'Pienso mucho ___ ti.', a: ['en'] },
@@ -176,7 +176,7 @@
 <p>Participe : -ar → <b>-ado</b> (hablado), -er/-ir → <b>-ido</b> (comido, salido).<br>
 Irréguliers : volver → <b>vuelto</b>, hacer → <b>hecho</b>, ver → <b>visto</b>, escribir → <b>escrito</b>, decir → <b>dicho</b>, poner → <b>puesto</b>, romper → <b>roto</b>, abrir → <b>abierto</b>.</p>
 <p><b>Emploi</b> : action passée dans une période <b>pas encore terminée</b> ou liée au présent : <i>hoy, esta mañana, este año, ya, todavía no, nunca, alguna vez</i>.<br>
-<i>¿Has comido sushi alguna vez? : No, nunca he comido sushi.</i></p>
+<i>¿Has comido sushi alguna vez? No, nunca he comido sushi.</i></p>
 <p>On ne sépare jamais haber du participe : <i>Ya <b>lo he hecho</b></i> (pas « he lo hecho »).</p>`,
     speak: ['¿Qué has hecho hoy? Cuéntamelo todo.', '¿Has viajado a otro país alguna vez? ¿Cuál?', '¿Qué cosas nunca has hecho y te gustaría hacer?'],
   };
@@ -254,7 +254,7 @@ Irréguliers : volver → <b>vuelto</b>, hacer → <b>hecho</b>, ver → <b>vist
     fiche: `
 <p><b>Futur proche</b> : <b>ir a</b> + infinitif : <i>Voy a ver una película esta noche.</i> (le plus utilisé à l'oral)</p>
 <p><b>Futur simple</b> : infinitif + <b>-é, -ás, -á, -emos, -éis, -án</b> : comer<b>é</b>, viajar<b>emos</b>.<br>
-Irréguliers (même terminaisons) : tener → <b>tendr</b>é, poner → <b>pondr</b>é, salir → <b>saldr</b>é, venir → <b>vendr</b>é, poder → <b>podr</b>é, saber → <b>sabr</b>é, querer → <b>querr</b>é, hacer → <b>har</b>é, decir → <b>dir</b>é.</p>
+Irréguliers (mêmes terminaisons) : tener → <b>tendr</b>é, poner → <b>pondr</b>é, salir → <b>saldr</b>é, venir → <b>vendr</b>é, poder → <b>podr</b>é, saber → <b>sabr</b>é, querer → <b>querr</b>é, hacer → <b>har</b>é, decir → <b>dir</b>é.</p>
 <p>Autres façons : <i>pienso + inf.</i> (je compte), <i>quiero + inf.</i>, présent + marqueur (<i>Mañana trabajo</i>).</p>`,
     speak: ['¿Qué vas a hacer el fin de semana que viene?', '¿Cómo te imaginas tu vida dentro de diez años?', '¿Cuáles son tus planes para las próximas vacaciones?'],
   };
