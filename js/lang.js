@@ -20,7 +20,7 @@ window.LANG = {
     session: 'Tu sesión', priorities: 'Tus prioridades', wotd: 'Expresión del día', speakToday: 'Para hablar hoy',
     stepWords: 'Palabras', stepGrammar: 'Verbos y gramática', stepSpeak: 'Hablar',
     questions: 'Preguntas', speakAloud: 'A hablar', wellDone: '¡Muy bien!',
-    review: 'Repaso', synonyms: 'Sinónimos', themes: 'Temas', inLang: 'En espagnol',
+    review: 'Repaso', synonyms: 'Sinónimos', themes: 'Temas', games: 'Juegos', inLang: 'En espagnol',
     conjugator: 'Conjugador', verbsEyebrow: 'Conjugaison',
     verbsLead: 'En mode intelligent, l’entraîneur insiste sur tes temps les plus faibles et te ressert les verbes que tu as ratés. Une question sur deux te donne seulement un repère temporel : à toi de choisir le bon temps.',
     soundsLead: 'Les sons qui trahissent un francophone. Écoute une voix native, répète, et le micro vérifie que tu es compris.',
